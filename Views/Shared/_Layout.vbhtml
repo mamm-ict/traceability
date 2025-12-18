@@ -468,6 +468,78 @@
             display: block;
             margin: 0 auto;
         }
+        .mes-table .status-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .mes-table .status-progress {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .mes-table .status-done {
+            background: #e6f4ea;
+            color: #1e7e34;
+        }
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+
+        .mes-table .row-editable {
+            background-color: #fffef5;
+        }
+
+        .mes-table .row-locked {
+            opacity: 0.75;
+        }
+
+        .mes-table .lock-icon {
+            font-size: 18px;
+        }
+        .mes-table input.vk-input {
+            font-size: 18px;
+            padding: 6px;
+        }
+
+        .mes-table th,
+        .mes-table td {
+            text-align: center;
+            vertical-align: middle;
+        }
+        .mes-left {
+            text-align: left !important;
+            padding-left: 16px;
+        }
+        .mes-tick-btn {
+            background: #2ecc71;
+            color: #fff;
+            border: none;
+            border-radius: 20%;
+            width: 34px;
+            height: 34px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+            .mes-tick-btn:active {
+                transform: scale(0.95);
+            }
+
+        .done-icon {
+            color: #2ecc71;
+            font-size: 18px;
+        }
+        .mes-tick-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
 
     </style>
 

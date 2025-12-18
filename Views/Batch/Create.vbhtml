@@ -54,27 +54,46 @@ End Code
 
             <div>
                 <label class="mes-label">Model</label>
-                <input type="text" name="Model" value="@ViewData("Model")" class="mes-input vk-input">
+                <input type="text" name="Model" value="@ViewData("Model")" class="mes-input vk-input" placeholder="Model">
             </div>
 
             <div>
+                <label class="mes-label">Part Code</label>
+                <select name="PartCode"
+                        id="PartCode"
+                        class="mes-input vk-input"
+                        required>
+
+                    <option disabled selected hidden value="">Select</option>
+
+                    @For Each p In CType(ViewData("PartMasters"), List(Of MaterialMaster))
+                        @<option value="@p.PartCode">
+                            @p.PartDesc
+                        </option>
+                    Next
+                </select>
+            </div>
+
+
+
+            <div>
                 <label class="mes-label">Bara Core Date</label>
-                <input type="date" name="BaraCoreDate" class="mes-input vk-input">
+                <input type="date" name="BaraCoreDate" class="mes-input">
             </div>
 
             <div>
                 <label class="mes-label">Line No</label>
-                <input type="text" name="Line" value="@ViewData("Line")" class="mes-input vk-input">
+                <input type="text" name="Line" value="@ViewData("Line")" class="mes-input vk-input" placeholder="Line No">
             </div>
 
             <div>
                 <label class="mes-label">Operator No</label>
-                <input type="text" name="OperatorID" value="@ViewData("OperatorID")" class="mes-input vk-input">
+                <input type="text" name="OperatorID" value="@ViewData("OperatorID")" class="mes-input vk-input" placeholder="Employee ID">
             </div>
 
             <div>
                 <label class="mes-label">Quantity</label>
-                <input type="number" name="InitQty" class="mes-input vk-input">
+                <input type="number" name="InitQty" class="mes-input vk-input" placeholder="000">
             </div>
 
         </div>
@@ -89,28 +108,64 @@ End Code
     function checkForm() {
         let hasError = false;
 
-        // Check main fields only
-        ["Line", "OperatorID", "Model", "BaraCore", "InitQty"].forEach(function (field) {
-            let el = document.querySelector("input[name='" + field + "']");
-            if (!el) return;
+        ["Model", "PartCode", "BaraCoreDate", "Line", "OperatorID", "InitQty"]
+            .forEach(name => {
 
-            if (el.value.trim() === "") {
-                hasError = true;
-                if (el.dataset.touched) el.style.border = "2px solid red";
-            } else {
-                el.style.border = "";
-            }
-        });
+                const el =
+                    document.querySelector(`input[name='${name}']`) ||
+                    document.querySelector(`select[name='${name}']`);
+
+                if (!el) return;
+
+                if (!el.value || el.value.trim() === "") {
+                    hasError = true;
+                    if (el.dataset.touched) el.style.border = "3px solid red";
+                } else {
+                    el.style.border = "";
+                }
+
+                if (el.tagName === "SELECT") {
+                    if (el.value === "") {
+                        hasError = true;
+                        if (el.dataset.touched) el.style.border = "3px solid red";
+                        return;
+                    }
+                }
+
+            });
 
         document.getElementById("submitBtn").disabled = hasError;
     }
 
     // Input triggers
-    document.addEventListener("input", function (e) {
-        if (["BaraCore", "Line", "InitQty", "OperatorID", "Model"].includes(e.target.name)) {
-            checkForm();
+    //document.addEventListener("input", function (e) {
+    //    if (["BaraCoreDate", "Line", "InitQty", "OperatorID", "PartCode", "Model"].includes(e.target.name)) {
+    //        checkForm();
+    //    }
+    //});
+    function bindValidation() {
+
+        // TEXT / NUMBER / DATE inputs
+        document.querySelectorAll(
+            "input[name='Model'], " +
+            "input[name='Line'], " +
+            "input[name='OperatorID'], " +
+            "input[name='InitQty'], " +
+            "input[name='BaraCoreDate']"
+        ).forEach(el => {
+            el.addEventListener("input", checkForm);
+            el.addEventListener("blur", checkForm);
+            el.addEventListener("focus", () => el.dataset.touched = "true");
+        });
+
+        // SELECT (PartCode)
+        const partSelect = document.querySelector("select[name='PartCode']");
+        if (partSelect) {
+            partSelect.addEventListener("change", checkForm);
+            partSelect.addEventListener("focus", () => partSelect.dataset.touched = "true");
+            partSelect.addEventListener("blur", checkForm);
         }
-    });
+    }
 
     function attachValidationEvents(input) {
         if (!input) return;
@@ -127,6 +182,7 @@ End Code
     window.onload = function () {
         let allInputs = document.querySelectorAll("input");
         allInputs.forEach(input => attachValidationEvents(input));
+        bindValidation();
         checkForm();
     };
 </script>

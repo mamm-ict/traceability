@@ -2,10 +2,10 @@
     Public Property ID As Integer
     Public Property TraceID As String
     Public Property ProcessID As Integer
-    Public Property ProcessName As String
-    Public Property Level As Integer
-    Public Property scan_time As DateTime
+    Public Property ScanTime As DateTime
     Public Property OperatorID As String
+    Public Property QtyIn As Integer
+    Public Property QtyOut As Integer
+    Public Property QtyReject As Integer
     Public Property Status As String
-    Public Property Notes As String
 End Class

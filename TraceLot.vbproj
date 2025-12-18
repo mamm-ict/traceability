@@ -203,9 +203,10 @@
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
     <Compile Include="Models\BatchModel.vb" />
+    <Compile Include="Models\MaterialLog.vb" />
+    <Compile Include="Models\MaterialMaster.vb" />
     <Compile Include="Models\ProcessLog.vb" />
     <Compile Include="Models\ProcessMaster.vb" />
-    <Compile Include="Models\RawMaterialEntry.vb" />
     <Compile Include="My Project\AssemblyInfo.vb" />
     <Compile Include="My Project\Application.Designer.vb">
       <AutoGen>True</AutoGen>

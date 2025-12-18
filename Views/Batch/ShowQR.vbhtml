@@ -92,5 +92,5 @@ End Code
 
 
 <p>
-    <a class="mes-link" href="@Url.Action("BatchQR", "Trace")">Back</a>
+    <a class="mes-link" href="@Url.Action("Index", "History")">Back</a>
 </p>

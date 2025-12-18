@@ -10,9 +10,11 @@ Public Class BatchController
 
     ' GET: Batch/Create
     Public Overloads Function Create() As ActionResult
-        ' Show the input form
+        ViewData("PartMasters") = DbHelper.GetPartMasters()
         Return View()
     End Function
+
+
 
     ' GET: Batch/ShowQR
     Public Function ShowQR(TraceID As String) As ActionResult
@@ -92,6 +94,7 @@ Public Class BatchController
         Dim batch As New Batch With {
             .TraceID = GenerateTraceID(),
             .Model = batchData("Model"),
+            .PartCode = batchData("PartCode"),
             .InitQty = batchData("InitQty"),
             .CurQty = batchData("InitQty"),
             .LastProc = GetLastProcess(),
@@ -109,13 +112,14 @@ Public Class BatchController
         Using conn As New SqlConnection(DbHelper.GetConnectionString())
             conn.Open()
             Dim cmd As New SqlCommand(
-    "INSERT INTO pp_trace_route (trace_id, model_name, initial_qty, current_qty, last_proc_CODE, status, shift, line, 
+    "INSERT INTO pp_trace_route (trace_id, model_name, part_code, initial_qty, current_qty, last_proc_CODE, status, shift, line, 
     operator_id, bara_core_date, bara_core_lot, created_date, update_date) 
-     VALUES (@TraceID, @Model, @InitQty, @CurQty, @LastProc, @Status, @Shift, @Line, 
+     VALUES (@TraceID, @Model, @PartCode, @InitQty, @CurQty, @LastProc, @Status, @Shift, @Line, 
     @OperatorID, @BaraCoreDate, @BaraCoreLot, @CreatedDate, @UpdateDate)", conn)
 
             cmd.Parameters.AddWithValue("@TraceID", batch.TraceID)
             cmd.Parameters.AddWithValue("@Model", batch.Model)
+            cmd.Parameters.AddWithValue("@PartCode", batch.PartCode)
             cmd.Parameters.AddWithValue("@InitQty", batch.InitQty)
             cmd.Parameters.AddWithValue("@CurQty", batch.CurQty)
             cmd.Parameters.AddWithValue("@LastProc", batch.LastProc)
@@ -161,6 +165,16 @@ Public Class BatchController
         ViewData("QRCodeImage") = qrBase64
 
         Return View("ShowQR")
+    End Function
+
+    <HttpPost>
+    Public Function DeleteTraceMaterial(id As Integer) As ContentResult
+        Try
+            DbHelper.DeleteTraceMaterial(id)
+            Return Content("OK")
+        Catch ex As Exception
+            Return Content(ex.Message)
+        End Try
     End Function
 
     ' -------------------------
