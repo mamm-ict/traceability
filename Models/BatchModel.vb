@@ -13,4 +13,5 @@
     Public Property BaraCoreLot As String
     Public Property CreatedDate As DateTime
     Public Property UpdateDate As DateTime
+    Public Property ControlNo As String
 End Class

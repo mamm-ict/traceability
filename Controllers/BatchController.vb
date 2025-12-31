@@ -11,22 +11,63 @@ Public Class BatchController
     ' GET: Batch/Create
     Public Overloads Function Create() As ActionResult
         ViewData("PartMasters") = DbHelper.GetPartMasters()
+
+        Dim batch As Batch = Nothing
+
+        Using conn As New SqlConnection(DbHelper.GetConnectionString("BatchDB"))
+            conn.Open()
+
+            Dim todayPrefix As String = "PPA-" & DateTime.Now.ToString("yyyyMMdd") & "-"
+            Dim cmd As New SqlCommand("SELECT * FROM pp_trace_route WHERE control_no is NULL  AND trace_id LIKE @TodayPrefix ", conn)
+            cmd.Parameters.AddWithValue("@TodayPrefix", todayPrefix & "%")
+            Using reader = cmd.ExecuteReader()
+
+
+                If reader.Read() Then
+                    batch = New Batch With {
+                     .TraceID = reader("trace_id").ToString(),
+                     .Model = reader("model_name").ToString(),
+                     .InitQty = Convert.ToInt64(reader("initial_qty")),
+                     .Shift = reader("shift").ToString(),
+                     .Line = reader("line").ToString(),
+                     .OperatorID = reader("operator_id").ToString(),
+                     .BaraCoreLot = reader("bara_core_lot").ToString(),
+                     .CreatedDate = Convert.ToDateTime(reader("created_date"))
+                     }
+                End If
+            End Using
+        End Using
+        ViewData("ShowScanModal") = True  ' <-- flag to trigger scan modal
+
+        If batch IsNot Nothing Then
+            ViewData("Batch") = batch
+        End If
+
+
         Return View()
     End Function
 
+    'Public Function ShowQR() As ActionResult
+    '    Return View()
+    'End Function
 
 
     ' GET: Batch/ShowQR
+    '<HttpPost>
     Public Function ShowQR(TraceID As String) As ActionResult
-        Dim batch As Batch
+        Dim batch As Batch = Nothing
 
-        Using conn As New SqlConnection(DbHelper.GetConnectionString())
+        If TraceID Is Nothing Then
+            ' Handle error: rekod tak wujud, atau redirect, atau show error
+            Return RedirectToAction("Create")
+
+        End If
+        Using conn As New SqlConnection(DbHelper.GetConnectionString("BatchDB"))
             conn.Open()
             Dim cmd As New SqlCommand("SELECT * FROM pp_trace_route WHERE trace_id=@TraceID", conn)
             cmd.Parameters.AddWithValue("@TraceID", TraceID)
             Using reader = cmd.ExecuteReader()
                 If reader.Read() Then
-                    'Dim rawList As List(Of RawMaterialEntry) = JsonConvert.DeserializeObject(Of List(Of RawMaterialEntry))(reader("RawMaterial").ToString())
                     batch = New Batch With {
                         .TraceID = reader("trace_id").ToString(),
                         .Model = reader("model_name").ToString(),
@@ -35,12 +76,14 @@ Public Class BatchController
                         .Line = reader("line").ToString(),
                         .OperatorID = reader("operator_id").ToString(),
                         .BaraCoreLot = reader("bara_core_lot").ToString(),
-                        .CreatedDate = Convert.ToDateTime(reader("created_date"))
+                        .CreatedDate = Convert.ToDateTime(reader("created_date")),
+                        .ControlNo = reader("control_no").ToString()
                     }
                 End If
             End Using
         End Using
         'End If
+
 
         ' Generate QR code
         'Dim qrContent = String.Join("|", batch.TraceID, batch.Model, batch.MachineNo, batch.Line, rmContent, batch.OperatorID, batch.CreatedDate.ToString("yyyy-MM-dd"), batch.Shift)
@@ -68,8 +111,10 @@ Public Class BatchController
         ViewData("BaraCoreLot") = batch.BaraCoreLot
         ViewData("CreatedDate") = batch.CreatedDate.ToString("yyyy-MM-dd HH:mm:ss")
         ViewData("UpdateDate") = batch.UpdateDate.ToString("yyyy-MM-dd HH:mm:ss")
+        ViewData("ControlNo") = batch.ControlNo
 
         ViewData("QRCodeImage") = qrBase64
+
 
         Return View()
     End Function
@@ -77,17 +122,6 @@ Public Class BatchController
     ' POST: Batch/Create
     <HttpPost>
     Public Overloads Function Create(batchData As FormCollection) As ActionResult
-        ' Read multiple raw materials + quantities
-        'Dim names As String() = batchData.GetValues("RawMaterialNames")
-        'Dim quantities As String() = batchData.GetValues("Quantities")
-
-        'Dim rawList As New List(Of RawMaterialEntry)()
-        'For i As Integer = 0 To names.Length - 1
-        '    If Not String.IsNullOrWhiteSpace(names(i)) AndAlso Not String.IsNullOrWhiteSpace(quantities(i)) Then
-        '        rawList.Add(New RawMaterialEntry With {.Name = names(i), .Quantity = Convert.ToInt32(quantities(i))})
-        '    End If
-        'Next
-
         Dim BaraCoreDate As DateTime = Convert.ToDateTime(batchData("BaraCoreDate"))
 
         ' Create batch object
@@ -109,7 +143,7 @@ Public Class BatchController
         }
 
         ' Save to SQLite
-        Using conn As New SqlConnection(DbHelper.GetConnectionString())
+        Using conn As New SqlConnection(DbHelper.GetConnectionString("BatchDB"))
             conn.Open()
             Dim cmd As New SqlCommand(
     "INSERT INTO pp_trace_route (trace_id, model_name, part_code, initial_qty, current_qty, last_proc_CODE, status, shift, line, 
@@ -136,8 +170,6 @@ Public Class BatchController
         End Using
 
         ' Generate QR code
-        'Dim rmContent = String.Join(",", batch.RawMaterials.Select(Function(r) r.Name & ":" & r.Quantity))
-        'Dim qrContent = String.Join("|", batch.TraceID, batch.Model, batch.MachineNo, batch.Line, rmContent, batch.OperatorID, batch.CreatedDate.ToString("yyyy-MM-dd"), batch.Shift)
         Dim qrContent = batch.TraceID
         Dim qrBase64 As String
         Using qrGenerator As New QRCodeGenerator()
@@ -164,7 +196,10 @@ Public Class BatchController
         ViewData("UpdateDate") = batch.UpdateDate.ToString("yyyy-MM-dd HH:mm:ss")
         ViewData("QRCodeImage") = qrBase64
 
+        ' After saving batch
+        ViewData("ShowScanModal") = True  ' <-- flag to trigger scan modal
         Return View("ShowQR")
+
     End Function
 
     <HttpPost>
@@ -180,11 +215,105 @@ Public Class BatchController
     ' -------------------------
     ' Helper methods
     ' -------------------------
+    <HttpPost>
+    Public Function GetEmployeeByControlNo() As JsonResult
+        Dim jsonString As String
+        Using reader = New System.IO.StreamReader(Request.InputStream)
+            jsonString = reader.ReadToEnd()
+        End Using
+
+        Dim data = Newtonsoft.Json.JsonConvert.DeserializeObject(Of Dictionary(Of String, String))(jsonString)
+        Dim controlNo As String = data("controlNo")
+
+        Using conn As New SqlConnection(DbHelper.GetConnectionString("EmpDB"))
+            conn.Open()
+            Dim cmd As New SqlCommand("
+            SELECT EMPLOYEE_NO
+            FROM ZPA_EMPLOYEE
+            WHERE CONTROL_NO = @ControlNo
+              AND EMP_STATUS = 'A'
+        ", conn)
+            cmd.Parameters.AddWithValue("@ControlNo", controlNo)
+            Dim empNo = cmd.ExecuteScalar()
+            If empNo Is Nothing Then
+                Return Json(New With {.success = False, .message = "Employee not found or inactive"})
+            End If
+            Return Json(New With {.success = True, .employeeNo = empNo.ToString()})
+        End Using
+    End Function
+
+    <HttpPost>
+    Public Function AddControlNo() As JsonResult
+        ' Read JSON from request
+        Dim jsonString As String
+        Using reader = New IO.StreamReader(Request.InputStream)
+            jsonString = reader.ReadToEnd()
+        End Using
+
+        Dim data = Newtonsoft.Json.JsonConvert.DeserializeObject(Of Dictionary(Of String, String))(jsonString)
+        Dim traceID = data("traceID")
+        Dim controlNo = data("controlNo").Trim() ' Trim whitespace
+
+        ' 1. Validate non-empty
+        If String.IsNullOrEmpty(controlNo) Then
+            Return Json(New With {.success = False, .message = "Control number cannot be empty!"})
+        End If
+
+        Using conn As New SqlConnection(DbHelper.GetConnectionString("BatchDB"))
+            conn.Open()
+
+            ' 2. Check if control_no already used for today's batches
+            Dim todayPrefix As String = "PPA-" & DateTime.Now.ToString("yyyyMMdd") & "-"
+            Dim checkCmd As New SqlCommand("
+            SELECT last_proc_code, trace_id
+            FROM pp_trace_route
+            WHERE control_no = @ControlNo 
+              AND trace_id LIKE @TodayPrefix
+        ", conn)
+            checkCmd.Parameters.AddWithValue("@ControlNo", controlNo)
+            checkCmd.Parameters.AddWithValue("@TodayPrefix", todayPrefix & "%")
+
+            Using readerCheck = checkCmd.ExecuteReader()
+                If readerCheck.Read() Then
+                    Dim lastProc As String = readerCheck("last_proc_code").ToString()
+                    Dim existingTrace As String = readerCheck("trace_id").ToString()
+                    Return Json(New With {
+     .success = False,
+     .message = String.Join(vbLf, New String() {
+         "⚠ Control number already used for today's batch!",
+         $"It is currently at process '{lastProc}' (Trace ID: {existingTrace}).",
+         "Please scan a new control number to continue."
+     })
+ })
+
+                End If
+            End Using
+
+            ' 3. Update control_no for the batch
+            Dim cmd As New SqlCommand("
+            UPDATE pp_trace_route
+            SET control_no = @ControlNo
+            WHERE trace_id = @TraceID
+        ", conn)
+            cmd.Parameters.AddWithValue("@TraceID", traceID)
+            cmd.Parameters.AddWithValue("@ControlNo", controlNo)
+
+            Dim rowsAffected = cmd.ExecuteNonQuery()
+            If rowsAffected = 0 Then
+                Return Json(New With {.success = False, .message = "TraceID not found"})
+            End If
+        End Using
+
+        ' Success
+        Return Json(New With {.success = True, .message = "Control number saved successfully!"})
+    End Function
+
+
     Private Function GenerateTraceID() As String
         Dim today As String = DateTime.Now.ToString("yyyyMMdd")
         Dim seq As Integer = 1
 
-        Using conn As New SqlConnection(DbHelper.GetConnectionString())
+        Using conn As New SqlConnection(DbHelper.GetConnectionString("BatchDB"))
             conn.Open()
 
             Dim cmd As New SqlCommand("

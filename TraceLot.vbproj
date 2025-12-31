@@ -302,6 +302,9 @@
     <Content Include="Views\Process\ProcessBatch.vbhtml" />
     <Content Include="Views\Process\ProcessMaster.vbhtml" />
     <Content Include="Views\Process\Detail.vbhtml" />
+    <Content Include="Views\History\ProcessLogs.vbhtml" />
+    <Content Include="Views\Process\ProcessMaterial.vbhtml" />
+    <Content Include="Views\Process\ProcessBuffer.vbhtml" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Global.asax" />

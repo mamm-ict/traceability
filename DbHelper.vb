@@ -3,11 +3,14 @@ Imports System.Data.SqlClient
 Imports System.Configuration
 
 Public Class DbHelper
-    Public Shared Function GetConnectionString() As String
-        Dim conn = ConfigurationManager.ConnectionStrings("BatchDB")
-        If conn Is Nothing Then Throw New Exception("Connection string 'BatchDB' not found in Web.config")
+    Public Shared Function GetConnectionString(dbName As String) As String
+        Dim conn = ConfigurationManager.ConnectionStrings(dbName)
+        If conn Is Nothing Then
+            Throw New Exception($"Connection string '{dbName}' not found in Web.config")
+        End If
         Return conn.ConnectionString
     End Function
+
 
     ' Log batch masuk process
     Public Shared Sub LogBatchProcess(
@@ -19,7 +22,7 @@ Public Class DbHelper
     qtyReject As Integer,
     status As String)
 
-        Using conn As New SqlConnection(GetConnectionString())
+        Using conn As New SqlConnection(GetConnectionString("BatchDB"))
             conn.Open()
             Dim cmd As New SqlCommand(
         "INSERT INTO pp_trace_processes
@@ -45,7 +48,7 @@ Public Class DbHelper
     ' Ambil semua process master
     Public Shared Function GetAllProcesses() As List(Of ProcessMaster)
         Dim list As New List(Of ProcessMaster)()
-        Using conn As New SqlConnection(GetConnectionString())
+        Using conn As New SqlConnection(GetConnectionString("BatchDB"))
             conn.Open()
             Dim cmd As New SqlCommand("SELECT * FROM pp_master_process", conn)
             Dim reader = cmd.ExecuteReader()
@@ -67,7 +70,7 @@ Public Class DbHelper
     Public Shared Function GetPartMasters() As List(Of MaterialMaster)
         Dim list As New List(Of MaterialMaster)
 
-        Using conn As New SqlConnection(GetConnectionString())
+        Using conn As New SqlConnection(GetConnectionString("BatchDB"))
             conn.Open()
 
             Dim cmd As New SqlCommand("
@@ -96,7 +99,7 @@ Public Class DbHelper
     ' Ambil process logs untuk batch tertentu
     Public Shared Function GetProcessLogs(batchPrefix As String) As List(Of ProcessLog)
         Dim logs As New List(Of ProcessLog)
-        Using conn As New SqlConnection(GetConnectionString())
+        Using conn As New SqlConnection(GetConnectionString("BatchDB"))
             conn.Open()
             Dim cmd As New SqlCommand(
             "SELECT * FROM pp_trace_processes  WHERE substr(TraceID,1,3)=@BatchPrefix ORDER BY scan_time ASC", conn)
@@ -120,7 +123,7 @@ Public Class DbHelper
     End Function
 
     Public Shared Function GetBatchByTraceID(traceId As String) As Batch
-        Using conn As New SqlConnection(GetConnectionString())
+        Using conn As New SqlConnection(GetConnectionString("BatchDB"))
             conn.Open()
             Dim cmd As New SqlCommand(
             "SELECT * FROM pp_trace_route WHERE trace_id=@TraceID", conn)
@@ -155,7 +158,7 @@ Public Class DbHelper
     'newQty As Integer,
     'lastProcCode As String)
 
-    '    Using conn As New SqlConnection(GetConnectionString())
+    '    Using conn As New SqlConnection(GetConnectionString("BatchDB"))
     '        conn.Open()
     '        Dim cmd As New SqlCommand(
     '    "UPDATE pp_trace_route
@@ -191,7 +194,7 @@ Public Class DbHelper
         ' baki selepas buffer + reject
         Dim newQty As Integer = batch.CurQty - qtyOut - qtyReject
 
-        Using conn As New SqlConnection(GetConnectionString())
+        Using conn As New SqlConnection(GetConnectionString("BatchDB"))
             conn.Open()
 
             ' 🔹 UPDATE PROCESS LOG
@@ -223,12 +226,28 @@ Public Class DbHelper
                 cmd2.ExecuteNonQuery()
             End Using
 
+
         End Using
+        '' 🔹 Auto-register next process
+        'Dim logs = GetProcessLogsByTraceID(batch.TraceID)
+        'Dim currentLog = logs.FirstOrDefault(Function(l) l.ID = logId)
+        'If currentLog IsNot Nothing Then
+        '    Dim currentProcess = GetProcessById(currentLog.ProcessID)
+        '    RegisterNextProcess(batch, currentProcess, batch.OperatorID)
+        'End If
+        ' --- Update in-memory batch object ---
+        batch.CurQty = newQty
+        Dim currentLog = GetProcessLogById(logId)
+        Dim currentProcess = GetProcessById(currentLog.ProcessID)
+        batch.LastProc = currentProcess.Code
+
+        ' --- Auto-register next process ---
+        RegisterNextProcess(batch, currentProcess, batch.OperatorID)
     End Sub
 
     ' Get a single process by ID
     Public Shared Function GetProcessById(processId As Integer) As ProcessMaster
-        Using conn As New SqlConnection(GetConnectionString())
+        Using conn As New SqlConnection(GetConnectionString("BatchDB"))
             conn.Open()
             Dim cmd As New SqlCommand("SELECT * FROM pp_master_process WHERE ID=@ID", conn)
             cmd.Parameters.AddWithValue("@ID", processId)
@@ -248,7 +267,7 @@ Public Class DbHelper
 
     ' Get last process log for a batch
     'Public Shared Function GetLastProcessLog(traceId As String) As ProcessLog
-    '    Using conn As New SqlConnection(GetConnectionString())
+    '    Using conn As New SqlConnection(GetConnectionString("BatchDB"))
     '        conn.Open()
     '        Dim cmd As New SqlCommand("SELECT *  FROM pp_trace_processes  WHERE trace_id=@TraceID ORDER BY scan_time DESC LIMIT 1", conn)
     '        cmd.Parameters.AddWithValue("@TraceID", traceId)
@@ -272,7 +291,7 @@ Public Class DbHelper
     ' Get all logs for a batch filtered by level
     'Public Shared Function GetProcessLogsByLevel(traceId As String, level As Integer) As List(Of ProcessLog)
     '    Dim list As New List(Of ProcessLog)()
-    '    Using conn As New SqlConnection(GetConnectionString())
+    '    Using conn As New SqlConnection(GetConnectionString("BatchDB"))
     '        conn.Open()
     '        Dim cmd As New SqlCommand("
     '        SELECT tp.* 
@@ -299,7 +318,7 @@ Public Class DbHelper
     '    Return list
     'End Function
     Public Shared Sub UpdateProcessLogStatus(logId As Integer, status As String)
-        Using conn As New SqlConnection(GetConnectionString())
+        Using conn As New SqlConnection(GetConnectionString("BatchDB"))
             conn.Open()
             Dim cmd As New SqlCommand("UPDATE pp_trace_processes SET Status=@Status WHERE ID=@ID", conn)
             cmd.Parameters.AddWithValue("@Status", status)
@@ -310,7 +329,7 @@ Public Class DbHelper
     ' Ambil semua process logs untuk batch tertentu (TraceID penuh)
     Public Shared Function GetProcessLogsByTraceID(traceId As String) As List(Of ProcessLog)
         Dim logs As New List(Of ProcessLog)
-        Using conn As New SqlConnection(GetConnectionString())
+        Using conn As New SqlConnection(GetConnectionString("BatchDB"))
             conn.Open()
             Dim cmd As New SqlCommand(
                 "SELECT * FROM pp_trace_processes WHERE trace_id=@TraceID ORDER BY scan_time ASC", conn)
@@ -337,7 +356,7 @@ Public Class DbHelper
     End Function
 
     Public Shared Function GetProcessLogById(logId As Integer) As ProcessLog
-        Using conn As New SqlConnection(GetConnectionString())
+        Using conn As New SqlConnection(GetConnectionString("BatchDB"))
             conn.Open()
             Dim cmd As New SqlCommand(
             "SELECT * FROM pp_trace_processes WHERE id=@ID",
@@ -369,7 +388,7 @@ Public Class DbHelper
     traceId As String,
     lastProcCode As String)
 
-        Using conn As New SqlConnection(GetConnectionString())
+        Using conn As New SqlConnection(GetConnectionString("BatchDB"))
             conn.Open()
             Dim cmd As New SqlCommand(
         "UPDATE pp_trace_route
@@ -409,7 +428,7 @@ Public Class DbHelper
 
         End If
 
-        Using conn As New SqlConnection(GetConnectionString())
+        Using conn As New SqlConnection(GetConnectionString("BatchDB"))
             conn.Open()
 
             Dim cmd As New SqlCommand(
@@ -442,7 +461,7 @@ Public Class DbHelper
 
         Dim list As New List(Of MaterialLog)
 
-        Using conn As New SqlConnection(GetConnectionString())
+        Using conn As New SqlConnection(GetConnectionString("BatchDB"))
             conn.Open()
 
             Dim cmd As New SqlCommand("
@@ -480,7 +499,7 @@ AND part_code = @PartCode
     End Function
     Public Shared Sub DeleteTraceMaterial(id As Integer)
 
-        Using conn As New SqlConnection(GetConnectionString())
+        Using conn As New SqlConnection(GetConnectionString("BatchDB"))
             conn.Open()
 
             Dim cmd As New SqlCommand(
@@ -501,7 +520,7 @@ AND part_code = @PartCode
     vendorLot As String
 ) As Boolean
 
-        Using conn As New SqlConnection(GetConnectionString())
+        Using conn As New SqlConnection(GetConnectionString("BatchDB"))
             conn.Open()
 
             Dim cmd As New SqlCommand("
@@ -527,45 +546,86 @@ AND part_code = @PartCode
             Return CInt(cmd.ExecuteScalar()) > 0
         End Using
     End Function
-    Public Shared Function HasMaterialForProcess(
-    traceId As String,
-    procId As Integer
-) As Boolean
-
-        Using conn As New SqlConnection(GetConnectionString())
+    Public Shared Function HasMaterialForProcess(traceId As String, procId As Integer) As Boolean
+        Using conn As New SqlConnection(GetConnectionString("BatchDB"))
             conn.Open()
 
-            Dim cmd As New SqlCommand("
-            SELECT COUNT(1)
-            FROM pp_trace_material
-            WHERE trace_id = @traceId
-              AND proc_id = @procId
+            ' 1️⃣ Ambik level process dari pp_master_process
+            Dim cmdLevel As New SqlCommand("
+            SELECT proc_level, material_flag
+            FROM pp_master_process
+            WHERE id = @procId
         ", conn)
+            cmdLevel.Parameters.AddWithValue("@procId", procId)
 
-            cmd.Parameters.AddWithValue("@traceId", traceId)
-            cmd.Parameters.AddWithValue("@procId", procId)
+            Dim reader = cmdLevel.ExecuteReader()
+            If Not reader.Read() Then Return False
+            Dim level As Integer = Convert.ToInt32(reader("proc_level"))
+            Dim materialFlag As Integer = Convert.ToInt32(reader("material_flag"))
+            reader.Close()
 
-            Return Convert.ToInt32(cmd.ExecuteScalar()) > 0
+            ' kalau material_flag = 0, return true terus
+            If materialFlag = 0 Then Return True
+
+            ' 2️⃣ Check ada material untuk process ni (level sama atau lebih rendah)
+            Dim cmdCheck As New SqlCommand("
+            SELECT COUNT(1)
+            FROM pp_trace_material m
+            INNER JOIN pp_master_process p ON m.proc_id = p.id
+            WHERE m.trace_id = @traceId
+              AND p.proc_level = @level
+        ", conn)
+            cmdCheck.Parameters.AddWithValue("@traceId", traceId)
+            cmdCheck.Parameters.AddWithValue("@level", level)
+
+            Return Convert.ToInt32(cmdCheck.ExecuteScalar()) > 0
         End Using
     End Function
-    Public Shared Sub CompleteProcess(traceId As String, procId As Integer)
 
-        Using conn As New SqlConnection(GetConnectionString())
-            conn.Open()
+    'Public Shared Sub CompleteProcess(traceId As String, procId As Integer)
 
-            Dim cmd As New SqlCommand("
-            UPDATE pp_trace_process_log
-            SET status = 'Completed'
-            WHERE trace_id = @traceId
-              AND proc_id = @procId
-              AND status = 'In Progress'
-        ", conn)
+    '    Using conn As New SqlConnection(GetConnectionString("BatchDB"))
+    '        conn.Open()
 
-            cmd.Parameters.AddWithValue("@traceId", traceId)
-            cmd.Parameters.AddWithValue("@procId", procId)
+    '        Dim cmd As New SqlCommand("
+    '        UPDATE pp_trace_process_log
+    '        SET status = 'Completed'
+    '        WHERE trace_id = @traceId
+    '          AND proc_id = @procId
+    '          AND status = 'In Progress'
+    '    ", conn)
 
-            cmd.ExecuteNonQuery()
-        End Using
+    '        cmd.Parameters.AddWithValue("@traceId", traceId)
+    '        cmd.Parameters.AddWithValue("@procId", procId)
+
+    '        cmd.ExecuteNonQuery()
+    '    End Using
+    'End Sub
+    Public Shared Sub RegisterNextProcess(batch As Batch, currentProcess As ProcessMaster, operatorId As String)
+        ' Get all processes
+        Dim processes = GetAllProcesses()
+
+        ' Determine next process by level
+        Dim nextProcess = processes.FirstOrDefault(Function(p) p.Level = currentProcess.Level + 1)
+        If nextProcess IsNot Nothing Then
+            ' Check if next process already logged
+            Dim logs = GetProcessLogsByTraceID(batch.TraceID)
+            Dim exists = logs.Any(Function(l) l.ProcessID = nextProcess.ID)
+            If Not exists Then
+                ' Log next process as "In Progress"
+                LogBatchProcess(
+                traceId:=batch.TraceID,
+                processId:=nextProcess.ID,
+                operatorId:=operatorId,
+                qtyIn:=batch.CurQty,
+                qtyOut:=0,
+                qtyReject:=0,
+                status:="In Progress"
+            )
+                ' Update batch last process
+                UpdateRouteLastProcess(batch.TraceID, nextProcess.Code)
+            End If
+        End If
     End Sub
 
 End Class

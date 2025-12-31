@@ -4,7 +4,7 @@
     ViewData("Title") = "Process QR Codes"
     Dim processList As List(Of Dictionary(Of String, String)) = CType(ViewData("ProcessList"), List(Of Dictionary(Of String, String)))
 
-    ' Group by first 3 letters of ProcessName safely
+    ' Group by first 3 letters of ProcessCode safely
     Dim groupedProcesses = processList _
         .GroupBy(Function(p)
                      Dim name As String = p("ProcessCode")
@@ -36,59 +36,74 @@ End Code
     <div class="mes-panel">
 
         @For Each prefixGroup In groupedProcesses
+            @Code
+                Dim firstProcess = prefixGroup.First()
+                Dim level As Integer = CInt(firstProcess("ProcessLevel"))
 
-            @<h3 class="mes-title" style="font-size:22px; margin-top:25px;">
-                @RemoveLast2Digits(prefixGroup.First()("ProcessName"))
-            </h3>
+                ' Nama header tanpa last 2 digit (dah siap)
+                Dim displayName As String = RemoveLast2Digits(firstProcess("ProcessName"))
 
-            @<table class="mes-table">
-                <thead>
-                    <tr>
+                ' Gabungkan level + nama
+                Dim headerText As String = $"{level}. {displayName}"
+            End Code
+
+            @<h3 class="date-header" onclick="toggleGroup(this)">
+    @headerText
+            <span class="arrow">&#9654;</span>
+        </h3>
+
+        @<table class="mes-table group-table" style="display:none;">
+            <thead>
+                        <tr>
                         <th> No</th>
-                        <th> Process Code</th>
-                        <th> QR Code</th>
-                    </tr>
-                </thead>
+                    <th> Process Code</th>
+                    <th> QR Code</th>
+                </tr>
+            </thead>
+            <tbody>
+            @Code Dim counter As Integer = 1 End Code
+            @For Each process As Dictionary(Of String, String) In prefixGroup
+            @<tr>
+            <td>@counter</td>
+                                <td>
+                                <a class="mes-link" href="@Url.Action("Detail", "Process", New With {.processId = process("ProcessID")})">
+            @process("ProcessCode")
+                                    </a>
+                                </td>
+                                <td>
+                                    <img src = "data:image/png;base64,@process("QRCodeImage")"
+                                         alt="QR Code" class="qr-img" onclick="enlargeQRCode(this)" />
+                                </td>
+                            </tr>
+            @Code counter += 1 End Code
+                        Next
+                    </tbody>
+                </table>
+Next
 
-                <tbody>
-                    @Code Dim counter As Integer = 1 End Code
-
-                    @For Each process As Dictionary(Of String, String) In prefixGroup
-                        @<tr>
-                            <td>@counter</td>
-
-                            <td>
-                                <a class="mes-link"
-                                   href="@Url.Action("Detail", "Process", New With {.processId = process("ProcessID")})">
-                                    @process("ProcessCode")
-                                </a>
-                            </td>
-
-                            <td>
-                                <img src="data:image/png;base64,@process("QRCodeImage")"
-                                     class="qr-img"
-                                     onclick="enlargeQRCode(this)" />
-                            </td>
-                        </tr>
-
-                        @Code counter += 1 End Code
-                    Next
-                </tbody>
-            </table>
-        Next
 
     </div>
 </div>
 
-
-<!-- QR Modal: follow History page style exactly -->
+<!-- QR Modal -->
 <div id="qrModal" class="qr-modal">
     <span class="closeBtn" onclick="closeQRCode()">&times;</span>
     <img id="qrModalImg" class="qr-large" />
 </div>
 
-
 <script>
+    function toggleGroup(header) {
+        const table = header.nextElementSibling;
+        const arrow = header.querySelector(".arrow");
+        if (table.style.display === "none") {
+            table.style.display = "table";
+            arrow.innerHTML = "&#9660;"; // down arrow
+        } else {
+            table.style.display = "none";
+            arrow.innerHTML = "&#9654;"; // right arrow
+        }
+    }
+
     function enlargeQRCode(img) {
         document.getElementById("qrModal").style.display = "flex";
         document.getElementById("qrModalImg").src = img.src;
@@ -98,3 +113,30 @@ End Code
         document.getElementById("qrModal").style.display = "none";
     }
 </script>
+
+<style>
+    .date-header {
+        background: #2b4c7e;
+        color: white;
+        padding: 10px 15px;
+        cursor: pointer;
+        margin: 0;
+        font-size: 18px;
+        user-select: none;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+        .date-header:hover {
+            background: #1e355a;
+        }
+
+    .arrow {
+        font-size: 18px;
+    }
+
+    .group-table {
+        margin-bottom: 20px;
+    }
+</style>

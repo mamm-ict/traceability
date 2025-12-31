@@ -38,7 +38,32 @@
             </div>
         </div>
     </nav>
+    <div id="fullscreenClock" style="
+    display: none;
+    position: fixed;
+    top: 10px;
+    right: 20px;
+
+    color: #1f2937;              /* 🔥 dark slate */
+    font-weight: 700;
+    font-size: 25px;
+    letter-spacing: 1.5px;
+
+    background: rgba(255,255,255,0.95); /* light backdrop */
+    padding: 4px 10px;
+    border-radius: 6px;
+
+    text-shadow: none;           /* ❌ remove glow */
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+
+    z-index: 9999;
+    pointer-events: none;
+"></div>
+
+
+
     <div class="container body-content" id="contentWrapper" style="padding-bottom:0;">
+
         @RenderBody()
         <hr />
         <footer>
@@ -384,7 +409,7 @@
 
         #navClock {
             letter-spacing: 1.5px;
-            word-spacing:5px;
+            word-spacing: 5px;
         }
         /* Card wrapper */
         .mes-process-card {
@@ -468,6 +493,7 @@
             display: block;
             margin: 0 auto;
         }
+
         .mes-table .status-badge {
             padding: 4px 10px;
             border-radius: 12px;
@@ -484,6 +510,7 @@
             background: #e6f4ea;
             color: #1e7e34;
         }
+
         .status-pending {
             background: #fff3cd;
             color: #856404;
@@ -501,6 +528,7 @@
         .mes-table .lock-icon {
             font-size: 18px;
         }
+
         .mes-table input.vk-input {
             font-size: 18px;
             padding: 6px;
@@ -511,10 +539,12 @@
             text-align: center;
             vertical-align: middle;
         }
+
         .mes-left {
             text-align: left !important;
             padding-left: 16px;
         }
+
         .mes-tick-btn {
             background: #2ecc71;
             color: #fff;
@@ -535,10 +565,117 @@
             color: #2ecc71;
             font-size: 18px;
         }
+
         .mes-tick-btn:disabled {
             background: #ccc;
             cursor: not-allowed;
         }
+
+        nav.navbar.fullscreen-hidden {
+            display: none !important;
+        }
+
+        /* Fullscreen center mode */
+        /*body.is-fullscreen {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;*/ /* vertical center */
+            /*align-items: center;*/ /* horizontal center */
+            /*height: 100vh;
+        }*/
+
+            /* Pastikan wrapper tak stretch pelik */
+            /*body.is-fullscreen #contentWrapper {
+                width: auto;
+                max-width: 100%;
+            }*/
+
+            /* ===== FULLSCREEN LAYOUT FIX ===== */
+
+/* Jangan flex body – itu punca banyak bug */
+/*body.is-fullscreen {
+    height: 100vh;
+    overflow: hidden;
+     flex-direction: column;
+ justify-content: center;*/ /* vertical center */
+ /*align-items: center;*/ /* horizontal center */
+/*}*/
+
+/* 🔥 BUANG Bootstrap container limit masa fullscreen */
+/*body.is-fullscreen #contentWrapper {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding-left: 24px;
+    padding-right: 24px;
+    margin: 0;
+}*/
+
+/* MES pages boleh guna ruang penuh */
+/*body.is-fullscreen .mes-container {
+    width: 100%;
+    max-width: 1400px;*/ /* adjust ikut screen MES */
+    /*margin: 0 auto;
+}*/
+
+/* Kalau ada card kecil, jangan stretch */
+/*body.is-fullscreen .mes-process-card,
+body.is-fullscreen .mes-route-card {
+    max-width: 100%;
+}*/
+        /* FULLSCREEN MODE */
+        /*body.is-fullscreen {
+            height: 100vh;
+            overflow-y: auto;*/ /* allow scroll if content too tall */
+            /*display: flex;
+            flex-direction: column;
+            justify-content: center;*/ /* vertical center if content smaller than viewport */
+            /*align-items: center;*/ /* horizontal center if content smaller than viewport */
+            /*padding: 0;
+            margin: 0;
+        }*/
+        body.is-fullscreen {
+            height: 100vh;
+            overflow-y: auto; /* scrollable */
+            display: block; /* jangan flex lagi */
+            padding: 0;
+            margin: 0;
+        }
+
+
+            /* Make wrapper expand to content but still center smaller content */
+            body.is-fullscreen #contentWrapper {
+                max-width: 1400px; /* sesuai MES page */
+                width: 100%;
+                margin: 0 auto; /* horizontal center */
+                padding: 20px;
+            }
+            @@media (min-height: 800px) {
+    body.is-fullscreen #contentWrapper {
+        display: flex;
+        flex-direction: column;
+        justify-content: center; /* vertical center bila tinggi screen > content */
+    }
+}
+
+
+            /* MES pages wrapper */
+            body.is-fullscreen .mes-container {
+                width: 100%;
+                max-width: 1400px;
+                margin: auto;
+            }
+
+            /* Small cards stay compact */
+            body.is-fullscreen .mes-process-card,
+            body.is-fullscreen .mes-route-card {
+                max-width: 100%;
+                margin: 20px auto; /* keep spacing */
+            }
+
+            /* Optional: force text-align center for smaller content inside wrapper */
+            body.is-fullscreen #contentWrapper > * {
+                text-align: center;
+            }
 
 
     </style>
@@ -635,6 +772,8 @@
                     document.getElementById("keyboard-symbols").style.display = "none";
                 }
             });
+            window.dispatchEvent(new Event('resize'));
+
         });
 
 
@@ -671,29 +810,98 @@
         function updateClock() {
             const now = new Date();
 
-            const months = [
-                "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-            ];
-
             const day = String(now.getDate()).padStart(2, "0");
-            //const month = months[now.getMonth()];
-            const month = String(now.getMonth() + 1).padStart(2, "0"); // FIX: tambah 1 + padStart
+            const month = String(now.getMonth() + 1).padStart(2, "0");
             const year = now.getFullYear();
 
             const h = String(now.getHours()).padStart(2, "0");
             const m = String(now.getMinutes()).padStart(2, "0");
             const s = String(now.getSeconds()).padStart(2, "0");
 
-            //const formatted = `${day} ${month} ${year} ${h}:${m}:${s}`;
             const formatted = `${year}-${month}-${day}        ${h}:${m}:${s}`;
 
-            const clock = document.getElementById("navClock");
-            if (clock) clock.innerText = formatted;
+            const navClock = document.getElementById("navClock");
+            if (navClock) navClock.innerText = formatted;
+
+            const fsClock = document.getElementById("fullscreenClock");
+            if (fsClock) fsClock.innerText = formatted;
         }
 
         setInterval(updateClock, 1000);
         updateClock();
+
+
+        function enterFullscreen() {
+            const el = document.documentElement; // or contentWrapper
+            if (el.requestFullscreen) el.requestFullscreen();
+            else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+            else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
+            else if (el.msRequestFullscreen) el.msRequestFullscreen();
+        }
+        let lastWidth = window.innerWidth;
+        let lastHeight = window.innerHeight;
+
+        window.addEventListener('resize', () => {
+            const navbar = document.querySelector('nav.navbar');
+            const fsClock = document.getElementById('fullscreenClock'); // ✅ FIX
+            if (!navbar) return;
+
+            const isNowFullscreen = window.innerWidth === screen.width && window.innerHeight === screen.height;
+
+            if (isNowFullscreen) {
+                navbar.style.display = 'none';
+                fsClock.style.display = 'block';
+                document.body.classList.add('is-fullscreen'); // 🔥 CENTER ON
+            } else {
+                navbar.style.display = 'flex';
+                fsClock.style.display = 'none';
+                document.body.classList.remove('is-fullscreen'); // 🔥 BACK TO NORMAL
+            }
+
+        });
+        window.addEventListener('resize', () => {
+            const navbar = document.querySelector('nav.navbar');
+            const fsClock = document.getElementById('fullscreenClock'); // ✅ FIX
+            if (!navbar) return;
+
+            const isNowFullscreen = window.innerWidth === screen.width && window.innerHeight === screen.height;
+
+            if (isNowFullscreen) {
+                navbar.style.display = 'none';
+                fsClock.style.display = 'block';
+                document.body.classList.add('is-fullscreen'); // 🔥 CENTER ON
+            } else {
+                navbar.style.display = 'flex';
+                fsClock.style.display = 'none';
+                document.body.classList.remove('is-fullscreen'); // 🔥 BACK TO NORMAL
+            }
+
+        });
+
+        function checkFullscreen() {
+            const navbar = document.querySelector('nav.navbar');
+            const fsClock = document.getElementById('fullscreenClock');
+            if (!navbar) return;
+
+            const isNowFullscreen = window.innerWidth === screen.width && window.innerHeight === screen.height;
+
+            if (isNowFullscreen) {
+                navbar.style.display = 'none';
+                fsClock.style.display = 'block';
+                document.body.classList.add('is-fullscreen');
+            } else {
+                navbar.style.display = 'flex';
+                fsClock.style.display = 'none';
+                document.body.classList.remove('is-fullscreen');
+            }
+        }
+
+        // Jalankan bila DOM siap
+        document.addEventListener('DOMContentLoaded', checkFullscreen);
+
+        // Masih run bila resize
+        window.addEventListener('resize', checkFullscreen);
+
     </script>
 
 

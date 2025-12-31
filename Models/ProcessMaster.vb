@@ -6,4 +6,5 @@
     Public Property FlowID As String
     Public Property MaterialFlag As Integer
     Public Property BufferFlag As Integer
+    Public Property ControlNo As String
 End Class
