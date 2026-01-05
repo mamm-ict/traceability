@@ -108,7 +108,6 @@ Public Class ProcessController
             Return RedirectToAction("ProcessBuffer", New With {.traceId = traceId, .procId = pendingBuffers.First().ProcessID})
         End If
 
-
         ' 5️⃣ Log current process FIRST
         DbHelper.LogBatchProcess(
             traceId:=traceId,
@@ -125,10 +124,10 @@ Public Class ProcessController
         ' 6️⃣ Redirect ikut material flag
         If scannedProcess.MaterialFlag = 1 Then
             Return RedirectToAction(
-        "ProcessMaterial",
-        "Process",
-        New With {.traceId = traceId, .procId = scannedProcess.ID}
-    )
+                "ProcessMaterial",
+                "Process",
+                New With {.traceId = traceId, .procId = scannedProcess.ID}
+            )
         ElseIf scannedProcess.BufferFlag = 1 Then
             Return RedirectToAction("ProcessBuffer", "Process", New With {.traceId = traceId, .procId = scannedProcess.ID})
 
@@ -167,8 +166,8 @@ Public Class ProcessController
             Return Content("Batch not found")
         End If
 
-        Dim processes As List(Of ProcessMaster) = DbHelper.GetAllProcesses()
-        Dim logs As List(Of ProcessLog) = DbHelper.GetProcessLogsByTraceID(traceId)
+        Dim processes = DbHelper.GetAllProcesses()
+        Dim logs = DbHelper.GetProcessLogsByTraceID(traceId)
 
         Dim pendingLog = logs.Where(Function(l) l.Status = "Pending Completion") _
             .OrderBy(Function(l) l.ScanTime) _
@@ -177,6 +176,10 @@ Public Class ProcessController
         ViewData("Batch") = batch
         ViewData("Processes") = processes
         ViewData("Logs") = logs
+
+        ' Flag if this is final process (no next process)
+        Dim currentProcess = processes.FirstOrDefault(Function(p) p.ID = procId)
+        ViewData("IsFinalProcess") = (currentProcess IsNot Nothing AndAlso currentProcess.Level = processes.Max(Function(x) x.Level))
 
         If pendingLog Is Nothing Then
             Return RedirectToAction("ProcessBatch", New With {.TraceID = traceId})
@@ -198,11 +201,11 @@ Public Class ProcessController
         Using conn As New SqlConnection(DbHelper.GetConnectionString("EmpDB"))
             conn.Open()
             Dim cmd As New SqlCommand("
-            SELECT EMPLOYEE_NO
-            FROM ZPA_EMPLOYEE
-            WHERE CONTROL_NO = @ControlNo
-              AND EMP_STATUS = 'A'
-        ", conn)
+                SELECT EMPLOYEE_NO
+                FROM ZPA_EMPLOYEE
+                WHERE CONTROL_NO = @ControlNo
+                  AND EMP_STATUS = 'A'
+            ", conn)
             cmd.Parameters.AddWithValue("@ControlNo", controlNo)
             Dim empNo = cmd.ExecuteScalar()
             If empNo Is Nothing Then
@@ -225,10 +228,10 @@ Public Class ProcessController
         Using conn As New SqlConnection(DbHelper.GetConnectionString("BatchDB"))
             conn.Open()
             Dim cmd As New SqlCommand("
-            SELECT proc_code
-            FROM pp_master_process
-            WHERE CONTROL_NO = @ControlNo
-        ", conn)
+                SELECT proc_code
+                FROM pp_master_process
+                WHERE CONTROL_NO = @ControlNo
+            ", conn)
             cmd.Parameters.AddWithValue("@ControlNo", controlNo)
             Dim procCode = cmd.ExecuteScalar()
             If procCode Is Nothing Then
@@ -251,11 +254,11 @@ Public Class ProcessController
         Using conn As New SqlConnection(DbHelper.GetConnectionString("BatchDB"))
             conn.Open()
             Dim cmd As New SqlCommand("
-            SELECT trace_id
-            FROM pp_trace_route
-            WHERE CONTROL_NO = @ControlNo
-            AND CAST(created_date AS DATE) = CAST(GETDATE() AS DATE);
-        ", conn)
+                SELECT trace_id
+                FROM pp_trace_route
+                WHERE CONTROL_NO = @ControlNo
+                AND CAST(created_date AS DATE) = CAST(GETDATE() AS DATE);
+            ", conn)
             cmd.Parameters.AddWithValue("@ControlNo", controlNo)
             Dim traceId = cmd.ExecuteScalar()
             If traceId Is Nothing Then
@@ -328,43 +331,6 @@ Public Class ProcessController
     End Function
 
     <HttpPost>
-    Public Function SubmitBuffer(traceId As String, processId As Integer, operatorId As String, qtyOut As Integer, qtyReject As Integer) As ActionResult
-
-        Try
-            ' 1️⃣ Get batch and current process
-            Dim batch = DbHelper.GetBatchByTraceID(traceId)
-            If batch Is Nothing Then
-                Return Json(New With {.success = False, .message = "Batch not found"})
-            End If
-
-            Dim currentProcess = DbHelper.GetProcessById(processId)
-            If currentProcess Is Nothing Then
-                Return Json(New With {.success = False, .message = "Process not found"})
-            End If
-
-            ' 2️⃣ Complete current process (update qty, status)
-            DbHelper.CompleteProcessLog(
-            logId:=DbHelper.GetProcessLogsByTraceID(traceId) _
-                        .FirstOrDefault(Function(l) l.ProcessID = processId AndAlso l.Status = "In Progress").ID,
-            batch:=batch,
-            qtyOut:=qtyOut,
-            qtyReject:=qtyReject)
-            ',operatorId:=operatorId
-
-
-            ' 3️⃣ Auto-register next process
-            DbHelper.RegisterNextProcess(batch, currentProcess, operatorId)
-
-            ' 4️⃣ Return success
-            Return Json(New With {.success = True, .message = "Buffer submitted and next process registered"})
-
-        Catch ex As Exception
-            Return Json(New With {.success = False, .message = ex.Message})
-        End Try
-
-    End Function
-
-    <HttpPost>
     Public Function ScanMaterial(model As MaterialLog) As ActionResult
         Try
             ' 🔐 SAFETY CHECK
@@ -372,18 +338,59 @@ Public Class ProcessController
                 Return Content("Invalid payload")
             End If
 
+            Using conn As New SqlConnection(DbHelper.GetConnectionString("BatchDB"))
+                conn.Open()
+
+                Dim cmd2 As New SqlCommand("SELECT mp.proc_level, mp.proc_flow_id FROM pp_master_process mp 
+                JOIN pp_master_material mm ON mp.proc_level = mm.proc_level
+                WHERE mp.id = @Id", conn)
+                cmd2.Parameters.AddWithValue("@Id", model.ProcID)
+
+                Dim level As Object = Nothing
+                Dim flowId As Object = Nothing
+
+                Using reader As SqlDataReader = cmd2.ExecuteReader()
+                    If reader.Read() Then
+                        level = reader("proc_level")
+                        flowId = reader("proc_flow_id")
+                    End If
+                End Using
+
+                Dim cmd As New SqlCommand("SELECT 1
+                    FROM pp_master_material mm
+                    WHERE mm.part_code = @PartCode
+                    AND mm.lower_item = @LowerMaterial
+                    AND mm.proc_level = @Level
+                    AND mm.proc_flow_id = @FlowId
+                    ", conn)
+
+                cmd.Parameters.AddWithValue("@PartCode", model.PartCode)
+                cmd.Parameters.AddWithValue("@LowerMaterial", model.LowerMaterial)
+                cmd.Parameters.AddWithValue("@Level", level)
+                cmd.Parameters.AddWithValue("@FlowId", flowId)
+
+                Dim exists As Object = cmd.ExecuteScalar()
+
+                Debug.WriteLine(level & flowId & model.PartCode & model.LowerMaterial)
+
+                ' ❌ MATERIAL TAK VALID → STOP & SURUH SCAN LAIN
+                If exists Is Nothing Then
+                    Return Content("Material not valid for this part. Please scan another material.")
+                End If
+            End Using
+
             ' 🔥 SATU-SATUNYA TEMPAT INSERT
             DbHelper.InsertTraceMaterial(
-            model.TraceID,
-            model.ProcID,
-            model.PartCode,
-            model.LowerMaterial,
-            model.BatchLot,
-            model.UsageQty,
-            model.UOM,
-            model.VendorCode,
-            model.VendorLot
-        )
+                model.TraceID,
+                model.ProcID,
+                model.PartCode,
+                model.LowerMaterial,
+                model.BatchLot,
+                model.UsageQty,
+                model.UOM,
+                model.VendorCode,
+                model.VendorLot
+            )
 
             ' 2️⃣ Check buffer flag
             Dim process = DbHelper.GetProcessById(model.ProcID)
@@ -405,67 +412,57 @@ Public Class ProcessController
     End Function
 
     <HttpPost>
-    Public Function DeleteTraceMaterial(id As Integer) As ActionResult
-        Try
-            DbHelper.DeleteTraceMaterial(id)
-            Return Content("OK")
-        Catch ex As Exception
-            Return Content(ex.Message)
-        End Try
-    End Function
-
-    <HttpPost>
     Public Function CompleteBuffer(logId As Integer, qtyReject As Integer, qtyOut As Integer) As ActionResult
-        ' ambil process log
+
         Dim log = DbHelper.GetProcessLogById(logId)
         If log Is Nothing Then
-            Return Content("Invalid log.")
+            Return Json(New With {.success = False, .message = "Invalid log."})
         End If
 
-        ' 🔒 hanya pending completion boleh complete
-        If log.Status <> "Pending Completion" Then
-            Return Content("Process not ready for completion.")
-        End If
-
-        ' ambil batch (trace)
         Dim batch = DbHelper.GetBatchByTraceID(log.TraceID)
-        If batch Is Nothing Then
-            Return Content("Invalid batch.")
-        End If
-
-        ' ambil process master (untuk process code)
         Dim process = DbHelper.GetProcessById(log.ProcessID)
-        If process Is Nothing Then
-            Return Content("Invalid process.")
-        End If
+
+        Dim processes = DbHelper.GetAllProcesses()
+        Dim maxLevel = processes.Max(Function(p) p.Level)
+        Dim isFinal As Boolean = (process.Level = maxLevel)
 
         Try
-            DbHelper.CompleteProcessLog(
-            logId:=logId,
-            batch:=batch,
-            qtyOut:=qtyOut,
-            qtyReject:=qtyReject)
-            'processCode:=process.Code
+            If isFinal Then
+                ' 🔥 FINAL PROCESS
+                Dim finalQtyOut As Integer = batch.CurQty - qtyReject
+                If finalQtyOut < 0 Then finalQtyOut = 0
 
-            Dim currentProcess = DbHelper.GetProcessById(log.ProcessID)
-            DbHelper.RegisterNextProcess(batch, currentProcess, log.OperatorID)
+                DbHelper.CompleteFinalProcess(
+                    logId:=log.ID,
+                    batch:=batch,
+                     qtyReject:=qtyReject
+                )
+                'qtyOut:=finalQtyOut,
+                Return Json(New With {
+                    .success = True,
+                    .redirectUrl = Url.Action("FinalProcess", "Process")
+                })
 
-            Dim logs = DbHelper.GetProcessLogsByTraceID(batch.TraceID)
-            Dim pendingBuffer = logs.Any(Function(l) l.Status = "Pending Completion")
+            Else
+                ' 🟢 NON-FINAL BUFFER
+                DbHelper.CompleteBufferRejectOnly(
+                    logId:=log.ID,
+                    batch:=batch,
+                    qtyReject:=qtyReject
+                )
 
-            If pendingBuffer Then
-                Return RedirectToAction("ProcessBuffer", New With {.traceId = batch.TraceID, .procId = log.ProcessID})
+                DbHelper.RegisterNextProcess(batch, process, log.OperatorID)
+
+                Return Json(New With {
+                    .success = True,
+                    .redirectUrl = Url.Action("ProcessBatch", "Process", New With {.traceId = batch.TraceID})
+                })
             End If
 
-            Return Content("OK")
-
         Catch ex As Exception
-            Return Content(ex.Message)
+            Return Json(New With {.success = False, .message = ex.Message})
         End Try
-
-        Return RedirectToAction("ProcessBatch", New With {.traceId = batch.TraceID})
     End Function
-
 
     Private Function LoadBatch(traceId As String) As Batch
         Dim batch As Batch = Nothing
@@ -574,6 +571,71 @@ Public Class ProcessController
 
         ViewData("Process") = process
         Return View()
+    End Function
+
+    Function FinalProcess() As ActionResult
+        Dim FinalList As New List(Of Dictionary(Of String, Object))()
+
+        Using conn As New SqlConnection(DbHelper.GetConnectionString("BatchDB"))
+            conn.Open()
+            Dim cmd As New SqlCommand("SELECT tr.trace_id, tr.model_name, mm.part_desc, tr.initial_qty,
+                tr.current_qty, tr.last_proc_code, tr.status, tp.process_id
+                FROM pp_trace_route tr 
+                JOIN pp_master_material mm ON tr.part_code = mm.upper_item 
+                JOIN pp_trace_processes tp ON tr.trace_id = tp.trace_id
+                WHERE tr.last_proc_code LIKE 'INS%' AND tr.status = 'ONGOING' AND tp.status = 'IN PROGRESS'", conn)
+
+            Using reader = cmd.ExecuteReader()
+                While reader.Read()
+                    Dim finalDict As New Dictionary(Of String, Object)
+                    finalDict("TraceID") = reader("trace_id").ToString()
+                    finalDict("ModelName") = reader("model_name").ToString()
+                    finalDict("PartCode") = reader("part_desc").ToString()
+                    finalDict("InitQty") = Convert.ToInt64(reader("initial_qty"))
+                    finalDict("CurQty") = Convert.ToInt64(reader("current_qty"))
+                    finalDict("LastProcCode") = reader("last_proc_code").ToString()
+                    finalDict("Status") = reader("status").ToString()
+                    finalDict("ProcessID") = Convert.ToInt64(reader("process_id"))
+
+                    FinalList.Add(finalDict)
+                End While
+            End Using
+        End Using
+        ViewData("FinalList") = FinalList
+        Return View()
+    End Function
+
+    ' POST: Complete process from button click
+    <HttpPost>
+    Public Function CompleteFinal(traceId As String, procId As Integer) As ActionResult
+
+        ' 1️⃣ Get batch & log
+        Dim batch = DbHelper.GetBatchByTraceID(traceId)
+        If batch Is Nothing Then
+            TempData("Error") = "Batch not found."
+            Return RedirectToAction("FinalProcess")
+        End If
+
+        Dim log = DbHelper.GetProcessLogsByTraceID(traceId) _
+            .FirstOrDefault(Function(l) l.ProcessID = procId)
+
+        If log Is Nothing Then
+            TempData("Error") = "Process log not found."
+            Return RedirectToAction("FinalProcess")
+        End If
+
+        ' 2️⃣ Force status to Pending Completion (buffer required)
+        If log.Status = "In Progress" Then
+            DbHelper.UpdateProcessLogStatus(log.ID, "Pending Completion")
+        End If
+
+        ' 3️⃣ Redirect to buffer page
+        Return RedirectToAction(
+            "ProcessBuffer",
+            "Process",
+            New With {.traceId = traceId, .procId = procId}
+        )
+
     End Function
 
 End Class

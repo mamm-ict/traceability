@@ -1,4 +1,8 @@
-﻿<h2>Process Logs for Batch: @ViewData("TraceID")</h2>
+﻿@Code
+    ViewData("Title") = "Process Logs"
+End Code
+
+<h2>Process Logs for Batch: @ViewData("TraceID")</h2>
 
 @if ViewData("Logs") IsNot Nothing AndAlso CType(ViewData("Logs"), List(Of Dictionary(Of String, String))).Any() Then
     Dim logs = CType(ViewData("Logs"), List(Of Dictionary(Of String, String)))
@@ -29,5 +33,5 @@
         </tbody>
     </table>
 Else
-@<p>No process logs yet.</p>
+    @<p>No process logs yet.</p>
 End If

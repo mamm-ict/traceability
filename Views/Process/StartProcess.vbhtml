@@ -80,62 +80,50 @@ End Code
             @ViewData("StatusMessage")
         </div>
 
-        @*@Code
-            Dim form = Html.BeginForm()
-        End Code*@
-
-    <form method="post" action="@Url.Action("StartProcess")">
-        <label>Scan Route Card:</label>
-        <input type="text" name="traceId" id="traceID" autofocus autocomplete="off" required />
-        <label class="mes-label">Operator No</label>
-        <input type="text" name="operatorId" id="operatorID" required autocomplete="off"/>
-        <label class="mes-label">Scan Process QR</label>
-        <input type="text" name="processQr" id="processQr" required autocomplete="off"/>
-        <input type="submit" value="Submit" />
-    </form>
-
-        @*@Code
-            form.Dispose()
-        End Code*@
-
+        <form method="post" action="@Url.Action("StartProcess")">
+            <label>Scan Route Card:</label>
+            <input type="text" name="traceId" id="traceID" autofocus autocomplete="off" required />
+            <label class="mes-label">Operator No</label>
+            <input type="text" name="operatorId" id="operatorID" required autocomplete="off"/>
+            <label class="mes-label">Scan Process QR</label>
+            <input type="text" name="processQr" id="processQr" required autocomplete="off"/>
+            <input type="submit" value="Submit" />
+        </form>
     </div>
-
 </div>
 
 <script>
     //Route Card scanning
     document.getElementById("traceID").addEventListener("change", function () {
-    let val = this.value.trim();
-    if (val.length === 0) return;
+        let val = this.value.trim();
+        if (val.length === 0) return;
 
-    // Scan CONTROL_NO (contoh: 10 digit)
-    if (/^\d{10}$/.test(val)) {
-        const url = '@Url.Action("GetTraceIDByControlNo", "Process")';
+        // Scan CONTROL_NO (contoh: 10 digit)
+        if (/^\d{10}$/.test(val)) {
+            const url = '@Url.Action("GetTraceIDByControlNo", "Process")';
             fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ controlNo: val })
             })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                this.value = data.traceID;
-            } else {
-                alert(data.message);
-                this.value = "";
-                this.focus();
-            }
-        });
-        return;
-    }
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    this.value = data.traceID;
+                } else {
+                    alert(data.message);
+                    this.value = "";
+                    this.focus();
+                }
+            });
+            return;
+        }
 
-    // CASE 3: format salah
-    alert("Invalid Route Card");
-    this.value = "";
-    this.focus();
+        // CASE 3: format salah
+        alert("Invalid Route Card");
+        this.value = "";
+        this.focus();
     });
-
-    //============================================================================================================
 
     //Operator ID scanning
     document.getElementById("operatorID").addEventListener("change", function () {
@@ -151,15 +139,16 @@ End Code
         // CASE 2: scan CONTROL_NO (contoh: 10 digit)
         if (/^\d{10}$/.test(val)) {
             const url = '@Url.Action("GetEmployeeByControlNo", "Process")';
-                fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ controlNo: val })
-                })
+
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ controlNo: val })
+            })
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    this.value = data.employeeNo; // replace dengan EMPLOYEE_NO
+                    this.value = data.employeeNo;
                 } else {
                     alert(data.message);
                     this.value = "";
@@ -174,8 +163,6 @@ End Code
         this.value = "";
         this.focus();
     });
-
-    //============================================================================================================
 
     //Process Card scanning
     const form = document.querySelector("form");

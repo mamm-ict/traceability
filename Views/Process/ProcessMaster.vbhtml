@@ -1,7 +1,7 @@
 ﻿@Imports System.Linq
 
 @Code
-    ViewData("Title") = "Process QR Codes"
+    ViewData("Title") = "Process Master"
     Dim processList As List(Of Dictionary(Of String, String)) = CType(ViewData("ProcessList"), List(Of Dictionary(Of String, String)))
 
     ' Group by first 3 letters of ProcessCode safely
@@ -40,48 +40,44 @@ End Code
                 Dim firstProcess = prefixGroup.First()
                 Dim level As Integer = CInt(firstProcess("ProcessLevel"))
 
-                ' Nama header tanpa last 2 digit (dah siap)
                 Dim displayName As String = RemoveLast2Digits(firstProcess("ProcessName"))
 
-                ' Gabungkan level + nama
                 Dim headerText As String = $"{level}. {displayName}"
             End Code
 
             @<h3 class="date-header" onclick="toggleGroup(this)">
-    @headerText
-            <span class="arrow">&#9654;</span>
-        </h3>
+                @headerText
+                <span class="arrow">&#9654;</span>
+            </h3>
 
-        @<table class="mes-table group-table" style="display:none;">
-            <thead>
-                        <tr>
+            @<table class="mes-table group-table" style="display:none;">
+                <thead>
+                    <tr>
                         <th> No</th>
-                    <th> Process Code</th>
-                    <th> QR Code</th>
-                </tr>
-            </thead>
-            <tbody>
-            @Code Dim counter As Integer = 1 End Code
-            @For Each process As Dictionary(Of String, String) In prefixGroup
-            @<tr>
-            <td>@counter</td>
-                                <td>
+                        <th> Process Code</th>
+                        <th> QR Code</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @Code Dim counter As Integer = 1 End Code
+                    @For Each process As Dictionary(Of String, String) In prefixGroup
+                        @<tr>
+                            <td>@counter</td>
+                            <td>
                                 <a class="mes-link" href="@Url.Action("Detail", "Process", New With {.processId = process("ProcessID")})">
-            @process("ProcessCode")
-                                    </a>
-                                </td>
-                                <td>
-                                    <img src = "data:image/png;base64,@process("QRCodeImage")"
-                                         alt="QR Code" class="qr-img" onclick="enlargeQRCode(this)" />
-                                </td>
-                            </tr>
-            @Code counter += 1 End Code
-                        Next
-                    </tbody>
-                </table>
-Next
-
-
+                                    @process("ProcessCode")
+                                </a>
+                            </td>
+                            <td>
+                                <img src="data:image/png;base64,@process("QRCodeImage")"
+                                     alt="QR Code" class="qr-img" onclick="enlargeQRCode(this)" />
+                            </td>
+                        </tr>
+                        @Code counter += 1 End Code
+                    Next
+                </tbody>
+            </table>
+        Next
     </div>
 </div>
 

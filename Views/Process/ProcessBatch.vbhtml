@@ -99,7 +99,6 @@ End Code
                 Auto-redirect in <span id="timer">20</span> seconds
             </div>
         </div>
-
     </div>
 </div>
 
@@ -123,6 +122,13 @@ End Code
         const interval = setInterval(() => {
             countdown--;
             timerDisplay.textContent = countdown;
+
+            if (progressPercent === 100) {
+                clearInterval(interval);
+                window.location.href = "@Url.Action("FinalProcess", "Process")";
+
+            }
+
             if (countdown <= 0) {
                 clearInterval(interval);
                 window.location.href = "@Url.Action("StartProcess", "Process")";
@@ -133,27 +139,27 @@ End Code
     startTimer();
 
     // Dynamic gradient color for progress bar
-const progressFill = document.getElementById("progress-fill");
-let progressPercent = @progressPercent; // injected VB value
+    const progressFill = document.getElementById("progress-fill");
+    let progressPercent = @progressPercent; // injected VB value
 
-// Ensure tiny width for 0% so color shows
-let displayWidth = progressPercent;
-if (progressPercent === 0) {
-    displayWidth = 2; // 5% width minimum to show red
-}
+    // Ensure tiny width for 0% so color shows
+    let displayWidth = progressPercent;
+    if (progressPercent === 0) {
+        displayWidth = 2;
+    }
 
-let bgColor = "";
-if (progressPercent === 0) {
-    bgColor = "linear-gradient(90deg, #e53935 100%, transparent 100%)"; // red indicator
-} else if (progressPercent < 50) {
-    bgColor = "linear-gradient(90deg, #ffb74d, #ff9800)"; // yellow/orange
-} else if (progressPercent < 100) {
-    bgColor = "linear-gradient(90deg, #00bcd4, #00acc1)"; // cyan/blue
-} else {
-    bgColor = "linear-gradient(90deg, #66bb6a, #43a047)"; // green
-}
+    let bgColor = "";
+    if (progressPercent === 0) {
+        bgColor = "linear-gradient(90deg, #e53935 100%, transparent 100%)"; // red indicator
+    } else if (progressPercent < 50) {
+        bgColor = "linear-gradient(90deg, #ffb74d, #ff9800)"; // yellow/orange
+    } else if (progressPercent < 100) {
+        bgColor = "linear-gradient(90deg, #00bcd4, #00acc1)"; // cyan/blue
+    } else {
+        bgColor = "linear-gradient(90deg, #66bb6a, #43a047)"; // green
+    }
 
-progressFill.style.background = bgColor;
-progressFill.style.width = displayWidth + "%";
+    progressFill.style.background = bgColor;
+    progressFill.style.width = displayWidth + "%";
 
 </script>

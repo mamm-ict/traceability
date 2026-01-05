@@ -1,8 +1,6 @@
-﻿
-@Code
+﻿@Code
     ViewData("Title") = "Route Card"
-End Code
-@Code
+
     If Not String.IsNullOrEmpty(ViewData("ControlNo")) Then
         ViewData("ShowScanModal") = False  ' <-- flag to trigger scan modal
         System.Diagnostics.Debug.WriteLine("Ni debug" & ViewData("ControlNo") & ViewData("TraceID"))
@@ -12,6 +10,7 @@ End Code
 
     End If
 End Code
+
 <h1 class="mes-title">Route Card</h1>
 
 <div class="mes-card mes-process-card" style="padding-top:25px;">
@@ -121,6 +120,7 @@ End Code
         <button id="closeModalBtn" class="mes-btn" style="margin-top:15px; width:auto; padding:8px 16px;">Close</button>
     </div>
 </div>
+
 <script>
 window.addEventListener("DOMContentLoaded", () => {
 
@@ -188,7 +188,6 @@ window.addEventListener("DOMContentLoaded", () => {
             this.focus();
         });
     });
-
 });
 
 </script>
@@ -199,5 +198,5 @@ window.addEventListener("DOMContentLoaded", () => {
 <script>
     setTimeout(function () {
         window.location.href = '@Url.Action("Create", "Batch")';
-    }, 20000); // 30 seconds
+    }, 20000); 
 </script>

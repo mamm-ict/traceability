@@ -129,41 +129,41 @@ End Code
     startAutoRedirect();
 
     document.getElementById("submitBuffer")?.addEventListener("click", function() {
-    const btn = this;
-    const logId = parseInt(document.getElementById("logId").value, 10);
-    const traceId = document.getElementById("traceId").value;
-    const qtyOut = parseInt(document.getElementById("qtyOut").value, 10) || 0;
-    const qtyReject = parseInt(document.getElementById("qtyReject").value, 10) || 0;
+        const btn = this;
+        const logId = parseInt(document.getElementById("logId").value, 10);
+        const traceId = document.getElementById("traceId").value;
+        const qtyOut = parseInt(document.getElementById("qtyOut").value, 10) || 0;
+        const qtyReject = parseInt(document.getElementById("qtyReject").value, 10) || 0;
 
-    if (qtyOut < 0 || qtyReject < 0) {
-        alert("Qty cannot be negative");
-        return;
-    }
-
-    btn.disabled = true; // prevent multiple clicks
-
-    const payload = { logId, qtyOut, qtyReject };
-
-    fetch("@Url.Action("CompleteBuffer")", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-    })
-    .then(r => r.text())
-    .then(res => {
-        if (res !== "OK") {
-            alert(res);
-            btn.disabled = false;
+        if (qtyOut < 0 || qtyReject < 0) {
+            alert("Qty cannot be negative");
             return;
         }
 
-        clearInterval(autoRedirectTimer); // stop countdown
-        window.location.href = "@Url.Action("ProcessBatch", "Process", New With {.TraceID = batch.TraceID})"; // redirect immediately
-    })
-    .catch(err => {
-        alert("Error submitting buffer: " + err);
-        btn.disabled = false;
+        btn.disabled = true; // prevent multiple clicks
+
+        const payload = { logId, qtyOut, qtyReject };
+
+        fetch("@Url.Action("CompleteBuffer")", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (!res.success) {
+                alert(res);
+                btn.disabled = false;
+                return;
+            }
+
+            clearInterval(autoRedirectTimer); 
+            window.location.href = "@Url.Action("ProcessBatch", "Process", New With {.TraceID = batch.TraceID})"; // redirect immediately
+        })
+        .catch(err => {
+            alert("Error submitting buffer: " + err);
+            btn.disabled = false;
+        });
     });
-});
 
 </script>

@@ -2,6 +2,8 @@ Public Class MaterialMaster
     Public Property ID As Integer
     Public Property PartCode As String
     Public Property PartDesc As String
+    Public Property StartQty As Integer
+    Public Property FinalQty As Integer
     Public Property UpperItem As String
     Public Property UpperDesc As String
     Public Property LowerItem As String

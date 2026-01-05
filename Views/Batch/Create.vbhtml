@@ -5,6 +5,7 @@
         batch = CType(ViewData("Batch"), Batch)
     End If
 End Code
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
 <div class="mes-container">
     <form method="post" action="/Batch/Create" class="mes-panel">
@@ -14,7 +15,7 @@ End Code
 
             <div>
                 <label class="mes-label">Model</label>
-                <input type="text" name="Model" value="@ViewData("Model")" class="mes-input vk-input" placeholder="Model">
+                <input type="text" name="Model" value="@ViewData("Model")" class="mes-input vk-input" placeholder="Model" required>
             </div>
 
             <div>
@@ -34,47 +35,50 @@ End Code
                 </select>
             </div>
 
-
-
             <div>
                 <label class="mes-label">Bara Core Date</label>
-                <input type="date" name="BaraCoreDate" class="mes-input">
+                <input type="date" name="BaraCoreDate" class="mes-input" required>
             </div>
 
             <div>
                 <label class="mes-label">Line No</label>
-                <input type="text" name="Line" value="@ViewData("Line")" class="mes-input vk-input" placeholder="Line No">
+                <input type="text" name="Line" value="@ViewData("Line")" class="mes-input vk-input" placeholder="Line No" required>
             </div>
 
             <div>
                 <label class="mes-label">Operator No</label>
-                <input type="text" name="OperatorID" id="OperatorID" value="@ViewData("OperatorID")" class="mes-input" placeholder="Employee ID">
+                <input type="text" name="OperatorID" id="OperatorID" value="@ViewData("OperatorID")" class="mes-input" placeholder="Employee ID" required>
             </div>
 
             <div>
                 <label class="mes-label">Quantity</label>
-                <input type="number" name="InitQty" class="mes-input vk-input" placeholder="000">
+                <input type="number"
+                       name="InitQty"
+                       id="InitQty"
+                       class="mes-input vk-input"
+                       placeholder="0"
+                       readonly
+                       required />
+                <input type="hidden" name="CurQty" id="CurQty" value="" />
             </div>
 
         </div>
-
-        <div id="dupError" class="mes-error">Duplicate material names detected!</div>
 
         <button type="submit" id="submitBtn" class="mes-btn" disabled>Submit</button>
 
     </form>
 
     @If batch IsNot Nothing Then
-@<div class="overlay-card">
-    <div class="overlay-content">
-        <h3 class="mes-card-title">Pending Route Card</h3>
-        <p> A batch exists without a route card. You must link it before continuing.</p>
-        <a href = "@Url.Action("ShowQR", "Batch", New With {.TraceID = batch.TraceID})" class="mes-btn">
-            Link Route Card
-        </a>
-    </div>
-</div>
-End If
+        @<div class="overlay-card">
+            <div class="overlay-content">
+                <h3 class="mes-card-title">Pending Route Card</h3>
+                <p> A batch exists without a route card. You must link it before continuing.</p>
+                <a href="@Url.Action("ShowQR", "Batch", New With {.TraceID = batch.TraceID})" class="mes-btn">
+                    Link Route Card
+                </a>
+            </div>
+        </div>
+    End If
 </div>
 
 <style>
@@ -170,14 +174,7 @@ End If
         document.getElementById("submitBtn").disabled = hasError;
     }
 
-    // Input triggers
-    //document.addEventListener("input", function (e) {
-    //    if (["BaraCoreDate", "Line", "InitQty", "OperatorID", "PartCode", "Model"].includes(e.target.name)) {
-    //        checkForm();
-    //    }
-    //});
     function bindValidation() {
-
         // TEXT / NUMBER / DATE inputs
         document.querySelectorAll(
             "input[name='Model'], " +
@@ -241,7 +238,7 @@ End If
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    this.value = data.employeeNo; // replace dengan EMPLOYEE_NO
+                    this.value = data.employeeNo;
                 } else {
                     alert(data.message);
                     this.value = "";
@@ -267,16 +264,43 @@ End If
                 traceID: traceID,
                 controlNo: controlNo
             })
-        })
-            .then(r => r.json())
+        }).then(r => r.json())
             .then(data => {
                 if (!data.success) {
-                    alert(data.message);   // <<< INI YANG KAU CARI
+                    alert(data.message);
                 } else {
                     alert("Success");
                 }
             });
     }
+
+    $('#PartCode').change(function () {
+        var partCode = $(this).val();
+        if (!partCode) return;
+
+        $.ajax({
+            url: '@Url.Action("GetFinalQty", "Batch")',
+            type: 'POST',
+            data: { partCode: partCode }, 
+            success: function (res) {
+                if (res.success) {
+                    $('#InitQty').val(res.finalQty);
+                    $('#CurQty').val(res.finalQty);
+                    checkForm();
+                } else {
+                    alert(res.message);
+                    $('#InitQty').val('');
+                    $('#CurQty').val('');
+                }
+            },
+            error: function () {
+                alert('Error mengambil quantity dari server!');
+                $('#InitQty').val('');
+                $('#CurQty').val('');
+            }
+        });
+    });
+
 </script>
 
 <style>

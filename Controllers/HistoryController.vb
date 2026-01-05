@@ -23,28 +23,6 @@ Public Class HistoryController
                     batch("CreatedDate") = Convert.ToDateTime(reader("created_date")).ToString("yyyy-MM-dd")
                     batch("ControlNo") = reader("control_no").ToString()
 
-                    ' Deserialize raw materials JSON safely
-                    'Dim rawMaterialsJson = reader("RawMaterial").ToString()
-                    'Try
-                    '    Dim rmList = JsonConvert.DeserializeObject(Of List(Of RawMaterialEntry))(rawMaterialsJson)
-                    '    batch("RawMaterial") = String.Join(", ", rmList.Select(Function(r) r.Name & ":" & r.Quantity))
-                    'Catch ex As Exception
-                    '    ' fallback if old format or plain text
-                    '    batch("RawMaterial") = rawMaterialsJson
-                    'End Try
-
-                    ' Generate QR code for each batch
-                    'Dim qrContent = String.Join("|",
-                    '                            batch("TraceID"),
-                    '                            batch("Model"),
-                    '                            batch("MachineNo"),
-                    '                            batch("Line"),
-                    '                            batch("RawMaterial"),
-                    '                            batch("OperatorID"),
-                    '                            batch("CreatedDate"),
-                    '                            batch("Shift"))
-
-
                     Dim qrContent = batch("TraceID")
 
                     Dim qrBase64 As String
@@ -101,7 +79,6 @@ Public Class HistoryController
         ViewData("Logs") = logs
         Return View()
     End Function
-
 
 End Class
 

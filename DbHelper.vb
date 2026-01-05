@@ -1,6 +1,6 @@
-﻿'Imports System.Data.SqlClient
-Imports System.Data.SqlClient
+﻿Imports System.Data.SqlClient
 Imports System.Configuration
+Imports Microsoft.Ajax.Utilities
 
 Public Class DbHelper
     Public Shared Function GetConnectionString(dbName As String) As String
@@ -11,25 +11,24 @@ Public Class DbHelper
         Return conn.ConnectionString
     End Function
 
-
     ' Log batch masuk process
     Public Shared Sub LogBatchProcess(
-    traceId As String,
-    processId As Integer,
-    operatorId As String,
-    qtyIn As Integer,
-    qtyOut As Integer,
-    qtyReject As Integer,
-    status As String)
+        traceId As String,
+        processId As Integer,
+        operatorId As String,
+        qtyIn As Integer,
+        qtyOut As Integer,
+        qtyReject As Integer,
+        status As String)
 
         Using conn As New SqlConnection(GetConnectionString("BatchDB"))
             conn.Open()
             Dim cmd As New SqlCommand(
-        "INSERT INTO pp_trace_processes
-        (trace_id, process_id, scan_time, operator_id, qty_in, qty_out, qty_reject, status)
-        VALUES
-        (@TraceID, @ProcessID, @ScanTime, @OperatorID, @QtyIn, @QtyOut, @QtyReject, @Status)",
-        conn)
+            "INSERT INTO pp_trace_processes
+            (trace_id, process_id, scan_time, operator_id, qty_in, qty_out, qty_reject, status)
+            VALUES
+            (@TraceID, @ProcessID, @ScanTime, @OperatorID, @QtyIn, @QtyOut, @QtyReject, @Status)",
+            conn)
 
             cmd.Parameters.AddWithValue("@TraceID", traceId)
             cmd.Parameters.AddWithValue("@ProcessID", processId)
@@ -44,7 +43,6 @@ Public Class DbHelper
         End Using
     End Sub
 
-
     ' Ambil semua process master
     Public Shared Function GetAllProcesses() As List(Of ProcessMaster)
         Dim list As New List(Of ProcessMaster)()
@@ -54,16 +52,18 @@ Public Class DbHelper
             Dim reader = cmd.ExecuteReader()
             While reader.Read()
                 Dim p As New ProcessMaster With {
-                .ID = Convert.ToInt32(reader("id")),
-                .Code = reader("proc_code").ToString(),
-                .Name = reader("proc_name").ToString(),
-                .Level = Convert.ToInt32(reader("proc_level")),
-                .MaterialFlag = Convert.ToInt32(reader("material_flag")),
-                .BufferFlag = Convert.ToInt32(reader("buffer_flag"))
-            }
+                    .ID = Convert.ToInt32(reader("id")),
+                    .Code = reader("proc_code").ToString(),
+                    .Name = reader("proc_name").ToString(),
+                    .Level = Convert.ToInt32(reader("proc_level")),
+                    .MaterialFlag = Convert.ToInt32(reader("material_flag")),
+                    .BufferFlag = Convert.ToInt32(reader("buffer_flag"))
+                }
+
                 list.Add(p)
             End While
         End Using
+
         Return list
     End Function
 
@@ -74,12 +74,12 @@ Public Class DbHelper
             conn.Open()
 
             Dim cmd As New SqlCommand("
-             SELECT  DISTINCT part_desc,
-                part_code
-            FROM pp_master_material
-            WHERE part_code IS NOT NULL
-            ORDER BY part_desc
-        ", conn)
+                 SELECT  DISTINCT part_desc,
+                    part_code
+                FROM pp_master_material
+                WHERE part_code IS NOT NULL
+                ORDER BY part_desc
+            ", conn)
 
             Using rdr = cmd.ExecuteReader()
                 While rdr.Read()
@@ -94,7 +94,16 @@ Public Class DbHelper
         Return list
     End Function
 
-
+    Public Shared Function GetFinalQtyByPartCode(partCode As String) As Integer
+        Using conn As New SqlConnection(GetConnectionString("BatchDB"))
+            conn.Open()
+            Dim cmd As New SqlCommand("SELECT start_qty FROM pp_master_material WHERE part_code=@PartCode", conn)
+            cmd.Parameters.AddWithValue("@PartCode", partCode)
+            Dim result = cmd.ExecuteScalar()
+            If result IsNot Nothing Then Return Convert.ToInt32(result)
+        End Using
+        Return 0
+    End Function
 
     ' Ambil process logs untuk batch tertentu
     Public Shared Function GetProcessLogs(batchPrefix As String) As List(Of ProcessLog)
@@ -153,98 +162,6 @@ Public Class DbHelper
         Return Nothing
     End Function
 
-    'Public Shared Sub UpdateBatchQty(
-    'traceId As String,
-    'newQty As Integer,
-    'lastProcCode As String)
-
-    '    Using conn As New SqlConnection(GetConnectionString("BatchDB"))
-    '        conn.Open()
-    '        Dim cmd As New SqlCommand(
-    '    "UPDATE pp_trace_route
-    '     SET current_qty=@Qty,
-    '         last_proc_code=@LastProc,
-    '         update_date=GETDATE()
-    '     WHERE trace_id=@TraceID", conn)
-
-    '        cmd.Parameters.AddWithValue("@Qty", newQty)
-    '        cmd.Parameters.AddWithValue("@LastProc", lastProcCode)
-    '        cmd.Parameters.AddWithValue("@TraceID", traceId)
-
-    '        cmd.ExecuteNonQuery()
-    '    End Using
-    'End Sub
-    Public Shared Sub CompleteProcessLog(
-    logId As Integer,
-    batch As Batch,
-    qtyOut As Integer,
-    qtyReject As Integer)
-
-        If qtyOut < 0 Or qtyReject < 0 Then
-            Throw New Exception("Qty cannot be negative")
-        End If
-
-        If qtyOut + qtyReject > batch.CurQty Then
-            Throw New Exception("Qty exceed current batch quantity")
-        End If
-
-        ' qty masuk ke process = current batch qty
-        Dim qtyIn As Integer = batch.CurQty
-
-        ' baki selepas buffer + reject
-        Dim newQty As Integer = batch.CurQty - qtyOut - qtyReject
-
-        Using conn As New SqlConnection(GetConnectionString("BatchDB"))
-            conn.Open()
-
-            ' 🔹 UPDATE PROCESS LOG
-            Using cmd As New SqlCommand(
-            "UPDATE pp_trace_processes
-             SET qty_in=@QtyIn,
-                 qty_out=@QtyOut,
-                 qty_reject=@QtyReject,
-                 status='Completed'
-             WHERE id=@ID", conn)
-
-                cmd.Parameters.AddWithValue("@QtyIn", qtyIn)
-                cmd.Parameters.AddWithValue("@QtyOut", qtyOut)
-                cmd.Parameters.AddWithValue("@QtyReject", qtyReject)
-                cmd.Parameters.AddWithValue("@ID", logId)
-
-                cmd.ExecuteNonQuery()
-            End Using
-
-            ' 🔹 UPDATE BATCH QTY
-            Using cmd2 As New SqlCommand(
- "UPDATE pp_trace_route
- SET current_qty=@Qty,
-     update_date=GETDATE()
- WHERE trace_id=@TraceID", conn)
-
-                cmd2.Parameters.AddWithValue("@Qty", newQty)
-                cmd2.Parameters.AddWithValue("@TraceID", batch.TraceID)
-                cmd2.ExecuteNonQuery()
-            End Using
-
-
-        End Using
-        '' 🔹 Auto-register next process
-        'Dim logs = GetProcessLogsByTraceID(batch.TraceID)
-        'Dim currentLog = logs.FirstOrDefault(Function(l) l.ID = logId)
-        'If currentLog IsNot Nothing Then
-        '    Dim currentProcess = GetProcessById(currentLog.ProcessID)
-        '    RegisterNextProcess(batch, currentProcess, batch.OperatorID)
-        'End If
-        ' --- Update in-memory batch object ---
-        batch.CurQty = newQty
-        Dim currentLog = GetProcessLogById(logId)
-        Dim currentProcess = GetProcessById(currentLog.ProcessID)
-        batch.LastProc = currentProcess.Code
-
-        ' --- Auto-register next process ---
-        RegisterNextProcess(batch, currentProcess, batch.OperatorID)
-    End Sub
-
     ' Get a single process by ID
     Public Shared Function GetProcessById(processId As Integer) As ProcessMaster
         Using conn As New SqlConnection(GetConnectionString("BatchDB"))
@@ -265,58 +182,6 @@ Public Class DbHelper
         Return Nothing
     End Function
 
-    ' Get last process log for a batch
-    'Public Shared Function GetLastProcessLog(traceId As String) As ProcessLog
-    '    Using conn As New SqlConnection(GetConnectionString("BatchDB"))
-    '        conn.Open()
-    '        Dim cmd As New SqlCommand("SELECT *  FROM pp_trace_processes  WHERE trace_id=@TraceID ORDER BY scan_time DESC LIMIT 1", conn)
-    '        cmd.Parameters.AddWithValue("@TraceID", traceId)
-    '        Using reader = cmd.ExecuteReader()
-    '            If reader.Read() Then
-    '                Return New ProcessLog With {
-    '                .ID = Convert.ToInt32(reader("ID")),
-    '                .TraceID = reader("TraceID").ToString(),
-    '                .ProcessID = Convert.ToInt32(reader("ProcessID")),
-    '                .scan_time = Convert.ToDateTime(reader("scan_time")),
-    '                .OperatorID = reader("OperatorID").ToString(),
-    '                .Status = reader("Status").ToString(),
-    '                .Notes = If(reader("Notes") IsNot DBNull.Value, reader("Notes").ToString(), "")
-    '            }
-    '            End If
-    '        End Using
-    '    End Using
-    '    Return Nothing
-    'End Function
-
-    ' Get all logs for a batch filtered by level
-    'Public Shared Function GetProcessLogsByLevel(traceId As String, level As Integer) As List(Of ProcessLog)
-    '    Dim list As New List(Of ProcessLog)()
-    '    Using conn As New SqlConnection(GetConnectionString("BatchDB"))
-    '        conn.Open()
-    '        Dim cmd As New SqlCommand("
-    '        SELECT tp.* 
-    '        FROM pp_trace_processes tp
-    '        INNER JOIN pp_master_process pm ON tp.ProcessID = pm.id
-    '        WHERE tp.TraceID=@TraceID AND pm.proc_level=@Level
-    '        ORDER BY tp.scan_time ASC", conn)
-    '        cmd.Parameters.AddWithValue("@TraceID", traceId)
-    '        cmd.Parameters.AddWithValue("@Level", level)
-    '        Using reader = cmd.ExecuteReader()
-    '            While reader.Read()
-    '                list.Add(New ProcessLog With {
-    '                .ID = Convert.ToInt32(reader("ID")),
-    '                .TraceID = reader("TraceID").ToString(),
-    '                .ProcessID = Convert.ToInt32(reader("ProcessID")),
-    '                .scan_time = Convert.ToDateTime(reader("scan_time")),
-    '                .OperatorID = reader("OperatorID").ToString(),
-    '                .Status = reader("Status").ToString(),
-    '                .Notes = If(reader("Notes") IsNot DBNull.Value, reader("Notes").ToString(), "")
-    '            })
-    '            End While
-    '        End Using
-    '    End Using
-    '    Return list
-    'End Function
     Public Shared Sub UpdateProcessLogStatus(logId As Integer, status As String)
         Using conn As New SqlConnection(GetConnectionString("BatchDB"))
             conn.Open()
@@ -326,6 +191,7 @@ Public Class DbHelper
             cmd.ExecuteNonQuery()
         End Using
     End Sub
+
     ' Ambil semua process logs untuk batch tertentu (TraceID penuh)
     Public Shared Function GetProcessLogsByTraceID(traceId As String) As List(Of ProcessLog)
         Dim logs As New List(Of ProcessLog)
@@ -338,16 +204,16 @@ Public Class DbHelper
             Using reader = cmd.ExecuteReader()
                 While reader.Read()
                     logs.Add(New ProcessLog With {
-    .ID = Convert.ToInt32(reader("id")),
-    .TraceID = reader("trace_id").ToString(),
-    .ProcessID = Convert.ToInt32(reader("process_id")),
-    .OperatorID = reader("operator_id").ToString(),
-    .Status = reader("status").ToString(),
-    .ScanTime = Convert.ToDateTime(reader("scan_time")),
-    .QtyIn = Convert.ToInt32(reader("qty_in")),
-    .QtyOut = Convert.ToInt32(reader("qty_out")),
-    .QtyReject = Convert.ToInt32(reader("qty_reject"))
-})
+                        .ID = Convert.ToInt32(reader("id")),
+                        .TraceID = reader("trace_id").ToString(),
+                        .ProcessID = Convert.ToInt32(reader("process_id")),
+                        .OperatorID = reader("operator_id").ToString(),
+                        .Status = reader("status").ToString(),
+                        .ScanTime = Convert.ToDateTime(reader("scan_time")),
+                        .QtyIn = Convert.ToInt32(reader("qty_in")),
+                        .QtyOut = Convert.ToInt32(reader("qty_out")),
+                        .QtyReject = Convert.ToInt32(reader("qty_reject"))
+                    })
 
                 End While
             End Using
@@ -359,24 +225,24 @@ Public Class DbHelper
         Using conn As New SqlConnection(GetConnectionString("BatchDB"))
             conn.Open()
             Dim cmd As New SqlCommand(
-            "SELECT * FROM pp_trace_processes WHERE id=@ID",
-            conn
-        )
+                "SELECT * FROM pp_trace_processes WHERE id=@ID",
+                conn
+            )
             cmd.Parameters.AddWithValue("@ID", logId)
 
             Using reader = cmd.ExecuteReader()
                 If reader.Read() Then
                     Return New ProcessLog With {
-    .ID = Convert.ToInt32(reader("id")),
-    .TraceID = reader("trace_id").ToString(),
-    .ProcessID = Convert.ToInt32(reader("process_id")),
-    .OperatorID = reader("operator_id").ToString(),
-    .Status = reader("status").ToString(),
-    .ScanTime = Convert.ToDateTime(reader("scan_time")),
-    .QtyIn = Convert.ToInt32(reader("qty_in")),
-    .QtyOut = Convert.ToInt32(reader("qty_out")),
-    .QtyReject = Convert.ToInt32(reader("qty_reject"))
-}
+                        .ID = Convert.ToInt32(reader("id")),
+                        .TraceID = reader("trace_id").ToString(),
+                        .ProcessID = Convert.ToInt32(reader("process_id")),
+                        .OperatorID = reader("operator_id").ToString(),
+                        .Status = reader("status").ToString(),
+                        .ScanTime = Convert.ToDateTime(reader("scan_time")),
+                        .QtyIn = Convert.ToInt32(reader("qty_in")),
+                        .QtyOut = Convert.ToInt32(reader("qty_out")),
+                        .QtyReject = Convert.ToInt32(reader("qty_reject"))
+                    }
 
                 End If
             End Using
@@ -384,21 +250,20 @@ Public Class DbHelper
 
         Return Nothing
     End Function
+
     Public Shared Sub UpdateRouteLastProcess(
-    traceId As String,
-    lastProcCode As String)
+        traceId As String,
+        lastProcCode As String)
 
         Using conn As New SqlConnection(GetConnectionString("BatchDB"))
             conn.Open()
             Dim cmd As New SqlCommand(
-        "UPDATE pp_trace_route
-         SET last_proc_code=@LastProc,
-             update_date=GETDATE(), status = 'ONGOING'
-         WHERE trace_id=@TraceID", conn)
+            "UPDATE pp_trace_route
+            SET last_proc_code=@LastProc, update_date=GETDATE(), status = 'ONGOING'
+            WHERE trace_id=@TraceID", conn)
 
             cmd.Parameters.AddWithValue("@LastProc", lastProcCode)
             cmd.Parameters.AddWithValue("@TraceID", traceId)
-
             cmd.ExecuteNonQuery()
         End Using
     End Sub
@@ -419,45 +284,63 @@ Public Class DbHelper
             Throw New Exception("part_code is NULL")
         End If
 
-        If TraceMaterialExists(
-            traceId, procId, partCode,
-            lowerMaterial, batchLot,
-            vendorCode, vendorLot
-        ) Then
-            Throw New Exception("Material already scanned for this process")
-
-        End If
-
         Using conn As New SqlConnection(GetConnectionString("BatchDB"))
             conn.Open()
 
-            Dim cmd As New SqlCommand(
-        "INSERT INTO pp_trace_material
-        (trace_id, proc_id, part_code, lower_material, batch_lot,
-         usage_qty, uom, vendor_code, vendor_lot, created_date)
-         VALUES
-        (@traceId, @procId, @partCode, @lowerMaterial, @batchLot,
-         @usageQty, @uom, @vendorCode, @vendorLot, GETDATE())",
-        conn)
+            ' ✅ Check if this material has been scanned before
+            Dim cmdCheck As New SqlCommand("
+                SELECT COUNT(*) 
+                FROM pp_trace_material
+                WHERE trace_id = @TraceID
+                AND proc_id = @ProcID
+                AND part_code = @PartCode
+                AND lower_material = @LowerMaterial
+                AND batch_lot = @BatchLot
+                AND vendor_code = @VendorCode
+                AND vendor_lot = @VendorLot
+            ", conn)
 
-            cmd.Parameters.AddWithValue("@traceId", traceId)
-            cmd.Parameters.AddWithValue("@procId", procId)
-            cmd.Parameters.AddWithValue("@partCode", partCode)
-            cmd.Parameters.AddWithValue("@lowerMaterial", lowerMaterial)
-            cmd.Parameters.AddWithValue("@batchLot", batchLot)
-            cmd.Parameters.AddWithValue("@usageQty", usageQty)
-            cmd.Parameters.AddWithValue("@uom", uom)
-            cmd.Parameters.AddWithValue("@vendorCode", vendorCode)
-            cmd.Parameters.AddWithValue("@vendorLot", vendorLot)
+            cmdCheck.Parameters.AddWithValue("@TraceID", traceId)
+            cmdCheck.Parameters.AddWithValue("@ProcID", procId)
+            cmdCheck.Parameters.AddWithValue("@PartCode", partCode)
+            cmdCheck.Parameters.AddWithValue("@LowerMaterial", lowerMaterial)
+            cmdCheck.Parameters.AddWithValue("@BatchLot", batchLot)
+            cmdCheck.Parameters.AddWithValue("@VendorCode", vendorCode)
+            cmdCheck.Parameters.AddWithValue("@VendorLot", vendorLot)
 
-            cmd.ExecuteNonQuery()
+            Dim count As Integer = Convert.ToInt32(cmdCheck.ExecuteScalar())
+            Dim isDuplicate As Boolean = (count > 0)
+
+            ' ✅ Insert material anyway
+            Dim cmdInsert As New SqlCommand("
+                INSERT INTO pp_trace_material
+                (trace_id, proc_id, part_code, lower_material, batch_lot,
+                 usage_qty, uom, vendor_code, vendor_lot, is_duplicate, created_date)
+                VALUES
+                (@TraceID, @ProcID, @PartCode, @LowerMaterial, @BatchLot,
+                 @UsageQty, @UOM, @VendorCode, @VendorLot, @IsDuplicate, GETDATE())
+            ", conn)
+
+            cmdInsert.Parameters.AddWithValue("@TraceID", traceId)
+            cmdInsert.Parameters.AddWithValue("@ProcID", procId)
+            cmdInsert.Parameters.AddWithValue("@PartCode", partCode)
+            cmdInsert.Parameters.AddWithValue("@LowerMaterial", lowerMaterial)
+            cmdInsert.Parameters.AddWithValue("@BatchLot", batchLot)
+            cmdInsert.Parameters.AddWithValue("@UsageQty", usageQty)
+            cmdInsert.Parameters.AddWithValue("@UOM", uom)
+            cmdInsert.Parameters.AddWithValue("@VendorCode", vendorCode)
+            cmdInsert.Parameters.AddWithValue("@VendorLot", vendorLot)
+            cmdInsert.Parameters.AddWithValue("@IsDuplicate", If(isDuplicate, 1, 0))
+
+            cmdInsert.ExecuteNonQuery()
         End Using
     End Sub
+
     Public Shared Function GetTraceMaterials(
-    traceId As String,
-    procId As Integer,
-    partCode As String
-) As List(Of MaterialLog)
+            traceId As String,
+            procId As Integer,
+            partCode As String
+        ) As List(Of MaterialLog)
 
         Dim list As New List(Of MaterialLog)
 
@@ -465,97 +348,52 @@ Public Class DbHelper
             conn.Open()
 
             Dim cmd As New SqlCommand("
-            SELECT *
-            FROM pp_trace_material
-            WHERE trace_id = @TraceID
-              AND proc_id = @ProcID
-AND part_code = @PartCode
-            ORDER BY created_date
-        ", conn)
+                SELECT *
+                FROM pp_trace_material
+                WHERE trace_id = @TraceID
+                AND proc_id = @ProcID
+                AND part_code = @PartCode
+                ORDER BY created_date
+            ", conn)
 
             cmd.Parameters.AddWithValue("@TraceID", traceId)
             cmd.Parameters.AddWithValue("@ProcID", procId)
             cmd.Parameters.AddWithValue("@PartCode", partCode)
 
-            Using r = cmd.ExecuteReader()
-                While r.Read()
-                    list.Add(New MaterialLog With {
-                        .ID = Convert.ToInt32(r("id")),
-                    .TraceID = r("trace_id").ToString(),
-                    .ProcID = CInt(r("proc_id")),
-                    .PartCode = r("part_code").ToString(),
-                    .LowerMaterial = r("lower_material").ToString(),
-                    .BatchLot = r("batch_lot").ToString(),
-                    .UsageQty = CInt(r("usage_qty")),
-                    .UOM = r("uom").ToString(),
-                    .VendorCode = r("vendor_code").ToString(),
-                    .VendorLot = r("vendor_lot").ToString()
-                })
+            Using reader = cmd.ExecuteReader()
+                While reader.Read()
+                    Dim m As New MaterialLog With {
+                        .ID = reader("id"),
+                        .TraceID = reader("trace_id").ToString(),
+                        .ProcID = Convert.ToInt32(reader("proc_id")),
+                        .PartCode = reader("part_code").ToString(),
+                        .LowerMaterial = reader("lower_material").ToString(),
+                        .BatchLot = reader("batch_lot").ToString(),
+                        .UsageQty = Convert.ToInt64(reader("usage_qty")),
+                        .UOM = reader("uom").ToString(),
+                        .VendorCode = reader("vendor_code").ToString(),
+                        .VendorLot = reader("vendor_lot").ToString(),
+                        .IsDuplicate = Convert.ToBoolean(reader("is_duplicate"))
+                    }
+                    list.Add(m)
                 End While
             End Using
         End Using
 
         Return list
     End Function
-    Public Shared Sub DeleteTraceMaterial(id As Integer)
 
-        Using conn As New SqlConnection(GetConnectionString("BatchDB"))
-            conn.Open()
-
-            Dim cmd As New SqlCommand(
-            "DELETE FROM pp_trace_material WHERE id = @id", conn)
-
-            cmd.Parameters.AddWithValue("@id", id)
-            cmd.ExecuteNonQuery()
-        End Using
-
-    End Sub
-    Public Shared Function TraceMaterialExists(
-    traceId As String,
-    procId As Integer,
-    partCode As String,
-    lowerMaterial As String,
-    batchLot As String,
-    vendorCode As String,
-    vendorLot As String
-) As Boolean
-
-        Using conn As New SqlConnection(GetConnectionString("BatchDB"))
-            conn.Open()
-
-            Dim cmd As New SqlCommand("
-            SELECT COUNT(1)
-            FROM pp_trace_material
-            WHERE trace_id = @traceId
-              AND proc_id = @procId
-              AND part_code = @partCode
-              AND lower_material = @lowerMaterial
-              AND batch_lot = @batchLot
-              AND vendor_code = @vendorCode
-              AND vendor_lot = @vendorLot
-        ", conn)
-
-            cmd.Parameters.AddWithValue("@traceId", traceId)
-            cmd.Parameters.AddWithValue("@procId", procId)
-            cmd.Parameters.AddWithValue("@partCode", partCode)
-            cmd.Parameters.AddWithValue("@lowerMaterial", lowerMaterial)
-            cmd.Parameters.AddWithValue("@batchLot", batchLot)
-            cmd.Parameters.AddWithValue("@vendorCode", vendorCode)
-            cmd.Parameters.AddWithValue("@vendorLot", vendorLot)
-
-            Return CInt(cmd.ExecuteScalar()) > 0
-        End Using
-    End Function
     Public Shared Function HasMaterialForProcess(traceId As String, procId As Integer) As Boolean
         Using conn As New SqlConnection(GetConnectionString("BatchDB"))
             conn.Open()
 
             ' 1️⃣ Ambik level process dari pp_master_process
             Dim cmdLevel As New SqlCommand("
-            SELECT proc_level, material_flag
-            FROM pp_master_process
-            WHERE id = @procId
-        ", conn)
+                SELECT proc_level, material_flag
+                FROM pp_master_process
+                WHERE id = @procId
+            ", conn)
+
             cmdLevel.Parameters.AddWithValue("@procId", procId)
 
             Dim reader = cmdLevel.ExecuteReader()
@@ -569,38 +407,19 @@ AND part_code = @PartCode
 
             ' 2️⃣ Check ada material untuk process ni (level sama atau lebih rendah)
             Dim cmdCheck As New SqlCommand("
-            SELECT COUNT(1)
-            FROM pp_trace_material m
-            INNER JOIN pp_master_process p ON m.proc_id = p.id
-            WHERE m.trace_id = @traceId
-              AND p.proc_level = @level
-        ", conn)
+                SELECT COUNT(1)
+                FROM pp_trace_material m
+                INNER JOIN pp_master_process p ON m.proc_id = p.id
+                WHERE m.trace_id = @traceId
+                  AND p.proc_level = @level
+            ", conn)
+
             cmdCheck.Parameters.AddWithValue("@traceId", traceId)
             cmdCheck.Parameters.AddWithValue("@level", level)
 
             Return Convert.ToInt32(cmdCheck.ExecuteScalar()) > 0
         End Using
     End Function
-
-    'Public Shared Sub CompleteProcess(traceId As String, procId As Integer)
-
-    '    Using conn As New SqlConnection(GetConnectionString("BatchDB"))
-    '        conn.Open()
-
-    '        Dim cmd As New SqlCommand("
-    '        UPDATE pp_trace_process_log
-    '        SET status = 'Completed'
-    '        WHERE trace_id = @traceId
-    '          AND proc_id = @procId
-    '          AND status = 'In Progress'
-    '    ", conn)
-
-    '        cmd.Parameters.AddWithValue("@traceId", traceId)
-    '        cmd.Parameters.AddWithValue("@procId", procId)
-
-    '        cmd.ExecuteNonQuery()
-    '    End Using
-    'End Sub
     Public Shared Sub RegisterNextProcess(batch As Batch, currentProcess As ProcessMaster, operatorId As String)
         ' Get all processes
         Dim processes = GetAllProcesses()
@@ -614,18 +433,164 @@ AND part_code = @PartCode
             If Not exists Then
                 ' Log next process as "In Progress"
                 LogBatchProcess(
-                traceId:=batch.TraceID,
-                processId:=nextProcess.ID,
-                operatorId:=operatorId,
-                qtyIn:=batch.CurQty,
-                qtyOut:=0,
-                qtyReject:=0,
-                status:="In Progress"
-            )
+                    traceId:=batch.TraceID,
+                    processId:=nextProcess.ID,
+                    operatorId:=operatorId,
+                    qtyIn:=batch.CurQty,
+                    qtyOut:=0,
+                    qtyReject:=0,
+                    status:="In Progress"
+                )
+
                 ' Update batch last process
                 UpdateRouteLastProcess(batch.TraceID, nextProcess.Code)
             End If
         End If
     End Sub
 
+    Public Shared Sub CompleteFinalRoute(traceId As String)
+        Using conn As New SqlConnection(GetConnectionString("BatchDB"))
+            conn.Open()
+            Dim cmd As New SqlCommand(
+                "UPDATE pp_trace_route
+                SET status = 'COMPLETED', update_date = GETDATE()
+                WHERE trace_id = @TraceID", conn)
+
+            cmd.Parameters.AddWithValue("@TraceID", traceId)
+            cmd.ExecuteNonQuery()
+        End Using
+    End Sub
+
+    Public Shared Sub CompleteBufferRejectOnly(
+            logId As Integer,
+            batch As Batch,
+            qtyReject As Integer
+        )
+
+        If qtyReject < 0 Then
+            Throw New Exception("Qty reject cannot be negative")
+        End If
+
+        Dim log = GetProcessLogById(logId)
+        If log Is Nothing Then Throw New Exception("Process log not found")
+
+        Dim process = GetProcessById(log.ProcessID)
+        If process Is Nothing Then Throw New Exception("Process not found")
+
+        ' 1️⃣ Update process log (NO qtyOut)
+        Using conn As New SqlConnection(GetConnectionString("BatchDB"))
+            conn.Open()
+
+            Using cmd As New SqlCommand("
+                    UPDATE pp_trace_processes
+                    SET qty_in = @QtyIn,
+                        qty_out = 0,
+                        qty_reject = @QtyReject,
+                        status = 'Completed'
+                    WHERE id = @ID
+                ", conn)
+
+                cmd.Parameters.AddWithValue("@QtyIn", batch.CurQty)
+                cmd.Parameters.AddWithValue("@QtyReject", qtyReject)
+                cmd.Parameters.AddWithValue("@ID", logId)
+                cmd.ExecuteNonQuery()
+            End Using
+
+            ' 2️⃣ Tolak reject SAHAJA dari batch
+            Using cmd2 As New SqlCommand("
+                    UPDATE pp_trace_route
+                    SET current_qty = current_qty - @RejectQty,
+                        update_date = GETDATE()
+                    WHERE trace_id = @TraceID
+                ", conn)
+                cmd2.Parameters.AddWithValue("@RejectQty", qtyReject)
+                cmd2.Parameters.AddWithValue("@TraceID", batch.TraceID)
+                cmd2.ExecuteNonQuery()
+            End Using
+        End Using
+
+        ' 3️⃣ Update memory
+        batch.CurQty -= qtyReject
+        batch.LastProc = process.Code
+
+    End Sub
+
+    Public Shared Sub CompleteFinalProcess(
+             logId As Integer,
+             batch As Batch,
+             qtyReject As Integer
+         )
+
+        If qtyReject < 0 Then
+            Throw New Exception("Qty reject cannot be negative")
+        End If
+
+        Dim log = GetProcessLogById(logId)
+        If log Is Nothing Then Throw New Exception("Process log not found")
+
+        Dim process = GetProcessById(log.ProcessID)
+        If process Is Nothing Then Throw New Exception("Process not found")
+
+        ' 1️⃣ Ambil FINAL QTY dari master material
+        Dim finalQty As Integer
+        Using conn As New SqlConnection(GetConnectionString("BatchDB"))
+            conn.Open()
+            Using cmd As New SqlCommand("
+                    SELECT final_qty
+                    FROM pp_master_material
+                    WHERE upper_item = @PartCode
+                ", conn)
+                cmd.Parameters.AddWithValue("@PartCode", batch.PartCode)
+                finalQty = Convert.ToInt32(cmd.ExecuteScalar())
+            End Using
+        End Using
+
+        ' 2️⃣ VALIDATION
+        If batch.CurQty < finalQty + qtyReject Then
+            Throw New Exception("Qty reject terlalu besar. Melebihi baki batch.")
+        End If
+
+        ' 3️⃣ KIRA qtyOut (INI LOGIK BETUL)
+        Dim qtyOut As Integer = batch.CurQty - finalQty - qtyReject
+        If qtyOut < 0 Then qtyOut = 0
+
+        Dim qtyIn = finalQty
+
+        ' 4️⃣ UPDATE PROCESS LOG
+        Using conn As New SqlConnection(GetConnectionString("BatchDB"))
+            conn.Open()
+
+            Using cmd As New SqlCommand("
+                    UPDATE pp_trace_processes
+                    SET qty_in = @QtyIn,
+                        qty_out = @QtyOut,
+                        qty_reject = @QtyReject,
+                        status = 'Completed'
+                    WHERE id = @ID
+                ", conn)
+                cmd.Parameters.AddWithValue("@QtyIn", qtyIn)
+                cmd.Parameters.AddWithValue("@QtyOut", qtyOut)
+                cmd.Parameters.AddWithValue("@QtyReject", qtyReject)
+                cmd.Parameters.AddWithValue("@ID", logId)
+                cmd.ExecuteNonQuery()
+            End Using
+
+            ' 5️⃣ UPDATE ROUTE (FINAL)
+            Using cmd2 As New SqlCommand("
+                    UPDATE pp_trace_route
+                    SET current_qty = @FinalQty,
+                        status = 'COMPLETED',
+                        update_date = GETDATE()
+                    WHERE trace_id = @TraceID
+                ", conn)
+                cmd2.Parameters.AddWithValue("@FinalQty", finalQty)
+                cmd2.Parameters.AddWithValue("@TraceID", batch.TraceID)
+                cmd2.ExecuteNonQuery()
+            End Using
+        End Using
+
+        ' 6️⃣ UPDATE MEMORY
+        batch.CurQty = finalQty
+        batch.LastProc = process.Code
+    End Sub
 End Class

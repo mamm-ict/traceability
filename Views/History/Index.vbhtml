@@ -1,7 +1,6 @@
 ﻿@Code
     ViewData("Title") = "Batch History"
 
-    ' Cast ViewData("BatchList") to List(Of Dictionary(Of String, String))
     Dim batchList = TryCast(ViewData("BatchList"), List(Of Dictionary(Of String, String)))
 
     Dim groupedBatches As IEnumerable(Of Object) = {}
@@ -14,7 +13,6 @@
             Select(Function(g) New With {Key .CreatedDate = g.Key, Key .Batches = g.Select(Function(x) x.Batch)})
     End If
 End Code
-
 
 <h2 class="mes-title" style="margin-top:10px;">Batch History</h2>
 
@@ -67,6 +65,7 @@ End Code
         Next
     </div>
 </div>
+
 <!-- QR Modal -->
 <div id="qrModal" class="qr-modal">
     <span class="closeBtn" onclick="closeQRCode()">&times;</span>

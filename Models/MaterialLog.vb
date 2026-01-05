@@ -10,4 +10,5 @@ Public Class MaterialLog
     Public Property VendorCode As String
     Public Property VendorLot As String
     Public Property CreatedAt As DateTime
+    Public Property IsDuplicate As Boolean
 End Class

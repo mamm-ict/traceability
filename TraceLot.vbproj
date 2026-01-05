@@ -305,6 +305,7 @@
     <Content Include="Views\History\ProcessLogs.vbhtml" />
     <Content Include="Views\Process\ProcessMaterial.vbhtml" />
     <Content Include="Views\Process\ProcessBuffer.vbhtml" />
+    <Content Include="Views\Process\FinalProcess.vbhtml" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Global.asax" />
@@ -327,9 +328,7 @@
     <Content Include="Views\Shared\_Layout.vbhtml" />
     <Content Include="Views\Web.config" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="App_Data\" />
-  </ItemGroup>
+  <ItemGroup />
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
     <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>

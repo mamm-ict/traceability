@@ -6,8 +6,6 @@
     <title>@ViewBag.Title</title>
     @Styles.Render("~/Content/css")
     @Scripts.Render("~/bundles/modernizr")
-
-
 </head>
 
 <body>
@@ -24,52 +22,47 @@
                     <li>@Html.ActionLink("History", "Index", "History", New With {.area = ""}, New With {.class = "nav-link"})</li>
                     <li>@Html.ActionLink("Process", "StartProcess", "Process", New With {.area = ""}, New With {.class = "nav-link"})</li>
                     <li>@Html.ActionLink("Process Master", "ProcessMaster", "Process", New With {.area = ""}, New With {.class = "nav-link"})</li>
+                    <li>@Html.ActionLink("Final Process", "FinalProcess", "Process", New With {.area = ""}, New With {.class = "nav-link"})</li>
                 </ul>
 
                 <!-- ⭐ CLOCK DI HUJUNG KANAN -->
                 <span id="navClock" style="
-    color:#90CAF9;
-    font-weight:600;
-    margin-left:20px;
-    font-size:16px;
-    text-shadow:0 0 6px rgba(144,202,249,0.8);
-"></span>
-
+                    color:#90CAF9;
+                    font-weight:600;
+                    margin-left:20px;
+                    font-size:16px;
+                    text-shadow:0 0 6px rgba(144,202,249,0.8);
+                "></span>
             </div>
         </div>
     </nav>
     <div id="fullscreenClock" style="
-    display: none;
-    position: fixed;
-    top: 10px;
-    right: 20px;
+        display: none;
+        position: fixed;
+        top: 10px;
+        right: 20px;
 
-    color: #1f2937;              /* 🔥 dark slate */
-    font-weight: 700;
-    font-size: 25px;
-    letter-spacing: 1.5px;
+        color: #1f2937;              /* 🔥 dark slate */
+        font-weight: 700;
+        font-size: 25px;
+        letter-spacing: 1.5px;
 
-    background: rgba(255,255,255,0.95); /* light backdrop */
-    padding: 4px 10px;
-    border-radius: 6px;
+        background: rgba(255,255,255,0.95); /* light backdrop */
+        padding: 4px 10px;
+        border-radius: 6px;
 
-    text-shadow: none;           /* ❌ remove glow */
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        text-shadow: none;           /* ❌ remove glow */
+        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
 
-    z-index: 9999;
-    pointer-events: none;
-"></div>
-
-
+        z-index: 9999;
+        pointer-events: none;
+    "></div>
 
     <div class="container body-content" id="contentWrapper" style="padding-bottom:0;">
-
         @RenderBody()
         <hr />
         <footer>
-            @*<p> @DateTime.Now </p>*@
             <p id="liveClock"></p>
-
         </footer>
     </div>
 
@@ -200,10 +193,8 @@
                 <button class="vk-btn" data-key="enter" style="background:#99ddff;">Enter</button>
                 <button class="vk-btn" data-key="close" style="background:#ff5555;">Close</button>
             </div>
-
         </div>
     </div>
-
 
     <style>
         /* Make keyboard responsive (scale down on small screens) */
@@ -230,7 +221,6 @@
             background: white;
             cursor: pointer;
         }
-
 
         /* Scale keyboard for small notebook screens */
         @@media (max-width: 1200px) {
@@ -376,7 +366,6 @@
             cursor: pointer;
         }
 
-
         .qr-modal {
             display: none;
             position: fixed;
@@ -411,6 +400,7 @@
             letter-spacing: 1.5px;
             word-spacing: 5px;
         }
+
         /* Card wrapper */
         .mes-process-card {
             margin: 20px auto;
@@ -440,6 +430,7 @@
             margin-left: auto;
             margin-right: auto;
         }
+
         /* Center wrapper */
         .mes-route-wrapper {
             width: 100%;
@@ -516,7 +507,6 @@
             color: #856404;
         }
 
-
         .mes-table .row-editable {
             background-color: #fffef5;
         }
@@ -575,64 +565,6 @@
             display: none !important;
         }
 
-        /* Fullscreen center mode */
-        /*body.is-fullscreen {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;*/ /* vertical center */
-            /*align-items: center;*/ /* horizontal center */
-            /*height: 100vh;
-        }*/
-
-            /* Pastikan wrapper tak stretch pelik */
-            /*body.is-fullscreen #contentWrapper {
-                width: auto;
-                max-width: 100%;
-            }*/
-
-            /* ===== FULLSCREEN LAYOUT FIX ===== */
-
-/* Jangan flex body – itu punca banyak bug */
-/*body.is-fullscreen {
-    height: 100vh;
-    overflow: hidden;
-     flex-direction: column;
- justify-content: center;*/ /* vertical center */
- /*align-items: center;*/ /* horizontal center */
-/*}*/
-
-/* 🔥 BUANG Bootstrap container limit masa fullscreen */
-/*body.is-fullscreen #contentWrapper {
-    max-width: 100% !important;
-    width: 100% !important;
-    padding-left: 24px;
-    padding-right: 24px;
-    margin: 0;
-}*/
-
-/* MES pages boleh guna ruang penuh */
-/*body.is-fullscreen .mes-container {
-    width: 100%;
-    max-width: 1400px;*/ /* adjust ikut screen MES */
-    /*margin: 0 auto;
-}*/
-
-/* Kalau ada card kecil, jangan stretch */
-/*body.is-fullscreen .mes-process-card,
-body.is-fullscreen .mes-route-card {
-    max-width: 100%;
-}*/
-        /* FULLSCREEN MODE */
-        /*body.is-fullscreen {
-            height: 100vh;
-            overflow-y: auto;*/ /* allow scroll if content too tall */
-            /*display: flex;
-            flex-direction: column;
-            justify-content: center;*/ /* vertical center if content smaller than viewport */
-            /*align-items: center;*/ /* horizontal center if content smaller than viewport */
-            /*padding: 0;
-            margin: 0;
-        }*/
         body.is-fullscreen {
             height: 100vh;
             overflow-y: auto; /* scrollable */
@@ -641,7 +573,6 @@ body.is-fullscreen .mes-route-card {
             margin: 0;
         }
 
-
             /* Make wrapper expand to content but still center smaller content */
             body.is-fullscreen #contentWrapper {
                 max-width: 1400px; /* sesuai MES page */
@@ -649,39 +580,34 @@ body.is-fullscreen .mes-route-card {
                 margin: 0 auto; /* horizontal center */
                 padding: 20px;
             }
-            @@media (min-height: 800px) {
-    body.is-fullscreen #contentWrapper {
-        display: flex;
-        flex-direction: column;
-        justify-content: center; /* vertical center bila tinggi screen > content */
-    }
-}
 
-
-            /* MES pages wrapper */
-            body.is-fullscreen .mes-container {
-                width: 100%;
-                max-width: 1400px;
-                margin: auto;
+        @@media (min-height: 800px) {
+            body.is-fullscreen #contentWrapper {
+                display: flex;
+                flex-direction: column;
+                justify-content: center; /* vertical center bila tinggi screen > content */
             }
+        }
 
-            /* Small cards stay compact */
-            body.is-fullscreen .mes-process-card,
-            body.is-fullscreen .mes-route-card {
-                max-width: 100%;
-                margin: 20px auto; /* keep spacing */
-            }
+        /* MES pages wrapper */
+        body.is-fullscreen .mes-container {
+            width: 100%;
+            max-width: 1400px;
+            margin: auto;
+        }
 
-            /* Optional: force text-align center for smaller content inside wrapper */
-            body.is-fullscreen #contentWrapper > * {
-                text-align: center;
-            }
+        /* Small cards stay compact */
+        body.is-fullscreen .mes-process-card,
+        body.is-fullscreen .mes-route-card {
+            max-width: 100%;
+            margin: 20px auto; /* keep spacing */
+        }
 
-
+        /* Optional: force text-align center for smaller content inside wrapper */
+        body.is-fullscreen #contentWrapper > * {
+            text-align: center;
+        }
     </style>
-
-
-
 
     <script>
         let activeInput = null;
@@ -701,14 +627,9 @@ body.is-fullscreen .mes-route-card {
                     const inputRect = input.getBoundingClientRect();
                     const wrapperRect = contentWrapper.getBoundingClientRect();
                     const offset = inputRect.bottom - wrapperRect.bottom;
-
-                    //if (offset > 0)
-                    //    contentWrapper.scrollBy({ top: offset + 10, behavior: "smooth" });
                 });
 
             }, 350); // WAS 150, MAKE IT LONGER
-
-
         }
 
         // Hide keyboard
@@ -717,7 +638,6 @@ body.is-fullscreen .mes-route-card {
             contentWrapper.style.paddingBottom = "0px";
             //activeInput = null; // reset
         }
-
 
         // Keyboard button clicks
         document.addEventListener("DOMContentLoaded", function () {
@@ -750,7 +670,6 @@ body.is-fullscreen .mes-route-card {
         });
 
         document.addEventListener("mousedown", function (e) {
-
             // click inside keyboard (including toggle buttons)
             if (kb.contains(e.target)) return;
 
@@ -759,7 +678,6 @@ body.is-fullscreen .mes-route-card {
 
             hideKeyboard();
         });
-
 
         document.querySelectorAll(".vk-btn-toggle").forEach(btn => {
             btn.addEventListener("click", function () {
@@ -776,7 +694,6 @@ body.is-fullscreen .mes-route-card {
 
         });
 
-
         // Attach keyboard to all inputs with class 'vk-input'
         function attachKeyboardInputs() {
             document.querySelectorAll("input.vk-input").forEach(input => {
@@ -787,25 +704,7 @@ body.is-fullscreen .mes-route-card {
         // Run on load
         document.addEventListener("DOMContentLoaded", attachKeyboardInputs);
     </script>
-    @*<script>
-            function updateClock() {
-                const now = new Date();
-
-                const formatted =
-                    now.getFullYear() + "-" +
-                    String(now.getMonth() + 1).padStart(2, "0") + "-" +
-                    String(now.getDate()).padStart(2, "0") + " " +
-                    String(now.getHours()).padStart(2, "0") + ":" +
-                    String(now.getMinutes()).padStart(2, "0") + ":" +
-                    String(now.getSeconds()).padStart(2, "0");
-
-                document.getElementById("liveClock").innerText = formatted;
-            }
-
-            setInterval(updateClock, 1000);
-            updateClock(); // initial call
-        </script>*@
-
+    
     <script>
         function updateClock() {
             const now = new Date();
@@ -830,7 +729,6 @@ body.is-fullscreen .mes-route-card {
         setInterval(updateClock, 1000);
         updateClock();
 
-
         function enterFullscreen() {
             const el = document.documentElement; // or contentWrapper
             if (el.requestFullscreen) el.requestFullscreen();
@@ -838,6 +736,7 @@ body.is-fullscreen .mes-route-card {
             else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
             else if (el.msRequestFullscreen) el.msRequestFullscreen();
         }
+
         let lastWidth = window.innerWidth;
         let lastHeight = window.innerHeight;
 
@@ -859,6 +758,7 @@ body.is-fullscreen .mes-route-card {
             }
 
         });
+
         window.addEventListener('resize', () => {
             const navbar = document.querySelector('nav.navbar');
             const fsClock = document.getElementById('fullscreenClock'); // ✅ FIX
@@ -903,7 +803,5 @@ body.is-fullscreen .mes-route-card {
         window.addEventListener('resize', checkFullscreen);
 
     </script>
-
-
 </body>
 </html>

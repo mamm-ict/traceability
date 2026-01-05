@@ -9,6 +9,5 @@ Public Class MvcApplication
         RouteConfig.RegisterRoutes(RouteTable.Routes)
         BundleConfig.RegisterBundles(BundleTable.Bundles)
 
-        'DbHelper.EnsureBatchTable()
     End Sub
 End Class
