@@ -39,9 +39,12 @@
     End If
 End Code
 
-<!-- Parent wrapper untuk center -->
-<div style="display:flex; justify-content:center; align-items:center; height:auto;">
-    <div class="mes-card shadow" style="
+<div class="mes-container">
+
+    <h2 class="mes-title">Process Registered</h2>
+        <!-- Parent wrapper untuk center -->
+        <div style="display:flex; justify-content:center; align-items:center; height:auto;">
+            <div class="mes-card shadow" style="
         max-width:600px;
         border-radius:14px;
         background:#fff;
@@ -50,31 +53,31 @@ End Code
         border-left:6px solid #1a73e8;
         box-shadow:0 6px 18px rgba(0,0,0,0.12);
     ">
-        <!-- --- Card content --- -->
-        <!-- Top Bar: TraceID + Date + Shift -->
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-            <h2 style="margin:0; font-size:1.6rem; color:#1a73e8; font-weight:700;">📦 @batch.TraceID</h2>
-            <div style="text-align:right; font-size:0.95rem; color:#555; margin-left:100px">
-                <div><strong>Date:</strong> @batch.CreatedDate.ToString("dd/MM/yyyy")</div>
-                <div><strong>Shift:</strong> @batch.Shift</div>
-            </div>
-        </div>
+                <!-- --- Card content --- -->
+                <!-- Top Bar: TraceID + Date + Shift -->
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                    <h2 style="margin:0; font-size:1.6rem; color:#1a73e8; font-weight:700;">📦 @batch.TraceID</h2>
+                    <div style="text-align:right; font-size:0.95rem; color:#555; margin-left:100px">
+                        <div><strong>Date:</strong> @batch.CreatedDate.ToString("dd/MM/yyyy")</div>
+                        <div><strong>Shift:</strong> @batch.Shift</div>
+                    </div>
+                </div>
 
-        <!-- Details Grid -->
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:22px; color:#555;">
-            <div><strong>Model:</strong> @batch.Model</div>
-            <div><strong>Line:</strong> @batch.Line</div>
-            <div><strong>Operator:</strong> @batch.OperatorID</div>
-            <div><strong>Bara Core Lot:</strong> @batch.BaraCoreLot</div>
-        </div>
+                <!-- Details Grid -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:22px; color:#555;">
+                    <div><strong>Model:</strong> @batch.Model</div>
+                    <div><strong>Line:</strong> @batch.Line</div>
+                    <div><strong>Operator:</strong> @batch.OperatorID</div>
+                    <div><strong>Bara Core Lot:</strong> @batch.BaraCoreLot</div>
+                </div>
 
-        <!-- Current Process & Progress -->
-        <div>
-            <div style="font-weight:600; color:#004d40; margin-bottom:8px; font-size:1rem;">🔄 Current Process</div>
-            <div style="display:flex; align-items:center; gap:12px;">
-                <!-- Progress Bar -->
-                <div style="flex:1; position:relative; height:24px; background:#e0e0e0; border-radius:12px; overflow:hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);">
-                    <div id="progress-fill" style="
+                <!-- Current Process & Progress -->
+                <div>
+                    <div style="font-weight:600; color:#004d40; margin-bottom:8px; font-size:1rem;">🔄 Current Process</div>
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <!-- Progress Bar -->
+                        <div style="flex:1; position:relative; height:24px; background:#e0e0e0; border-radius:12px; overflow:hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);">
+                            <div id="progress-fill" style="
                         width:@progressPercent%;
                         height:100%;
                         border-radius:12px;
@@ -86,32 +89,43 @@ End Code
                         font-size:0.85rem;
                         transition: width 0.6s ease, background 0.6s ease;
                     ">
-                        @(If(progressPercent > 0, progressPercent & "%", ""))
+                                @(If(progressPercent > 0, progressPercent & "%", ""))
+                            </div>
+                        </div>
+
+                        <!-- Current Process Name -->
+                        <div style="min-width:140px; font-weight:600; color:#004d40;">@currentProcessName</div>
+                    </div>
+
+                    <!-- Timer -->
+                    <div style="margin-top:10px; font-size:0.9rem; color:#888;">
+                        Auto-redirect in <span id="timer">20</span> seconds
                     </div>
                 </div>
-
-                <!-- Current Process Name -->
-                <div style="min-width:140px; font-weight:600; color:#004d40;">@currentProcessName</div>
-            </div>
-
-            <!-- Timer -->
-            <div style="margin-top:10px; font-size:0.9rem; color:#888;">
-                Auto-redirect in <span id="timer">20</span> seconds
-            </div>
         </div>
     </div>
+   
+
 </div>
+   
 
+    <style>
+        .mes-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            transition: all 0.25s;
+        }
+        .mes-card {
+            max-width: 700px;
+            margin: 30px auto;
+            padding: 25px;
+/*            background: #fff;*/
+/*            border-radius: 15px;*/
+/*            box-shadow: 0 10px 25px rgba(0,0,0,0.08);*/
+        }
+    </style>
 
-<style>
-    .mes-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-        transition: all 0.25s;
-    }
-</style>
-
-<script>
+    <script>
     let countdown = 20;
     const timerDisplay = document.getElementById("timer");
 
@@ -123,15 +137,16 @@ End Code
             countdown--;
             timerDisplay.textContent = countdown;
 
-            if (progressPercent === 100) {
-                clearInterval(interval);
-                window.location.href = "@Url.Action("FinalProcess", "Process")";
 
-            }
 
             if (countdown <= 0) {
                 clearInterval(interval);
                 window.location.href = "@Url.Action("StartProcess", "Process")";
+                 if (progressPercent === 100) {
+                                //clearInterval(interval);
+                                window.location.href = "@Url.Action("FinalProcess", "Process")";
+
+                            }
             }
         }, 1000);
     }
@@ -162,4 +177,4 @@ End Code
     progressFill.style.background = bgColor;
     progressFill.style.width = displayWidth + "%";
 
-</script>
+    </script>

@@ -214,18 +214,18 @@ End Code
     function startAutoRedirect() {
         countdown = 20;
         timerDisplay.textContent = countdown;
-    if (autoRedirectTimer) clearTimeout(autoRedirectTimer);
+        if (autoRedirectTimer) clearTimeout(autoRedirectTimer);
 
-        // start new timer
-       autoRedirectTimer = setInterval(() => {
-           countdown--;
-           timerDisplay.textContent = countdown;
+            // start new timer
+           autoRedirectTimer = setInterval(() => {
+               countdown--;
+               timerDisplay.textContent = countdown;
 
-           if (countdown <= 0) {
-               clearInterval(autoRedirectTimer);
-               window.location.href = "@Url.Action("ProcessBatch", "Process", New With {.TraceID = batch.TraceID})";
-           }
-       }, 1000);
+               if (countdown <= 0) {
+                   clearInterval(autoRedirectTimer);
+                   window.location.href = "@Url.Action("ProcessBatch", "Process", New With {.TraceID = batch.TraceID})";
+               }
+           }, 1000);
     }
 
     // Start timer initially

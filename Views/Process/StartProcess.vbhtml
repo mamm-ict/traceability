@@ -77,16 +77,16 @@ End Code
         <h2 class="mes-title">Start Process</h2>
 
         <div class="status-message">
-            @ViewData("StatusMessage")
+            @Html.Raw(ViewData("StatusMessage"))
         </div>
 
         <form method="post" action="@Url.Action("StartProcess")">
             <label>Scan Route Card:</label>
             <input type="text" name="traceId" id="traceID" autofocus autocomplete="off" required />
             <label class="mes-label">Operator No</label>
-            <input type="text" name="operatorId" id="operatorID" required autocomplete="off"/>
+            <input type="text" name="operatorId" id="operatorID" required autocomplete="off" />
             <label class="mes-label">Scan Process QR</label>
-            <input type="text" name="processQr" id="processQr" required autocomplete="off"/>
+            <input type="text" name="processQr" id="processQr" required autocomplete="off" />
             <input type="submit" value="Submit" />
         </form>
     </div>
@@ -97,6 +97,11 @@ End Code
     document.getElementById("traceID").addEventListener("change", function () {
         let val = this.value.trim();
         if (val.length === 0) return;
+
+        if (/^[A-Za-z]{3}-\d{8}-\d{3}$/.test(val)) {
+            // valid manual input, just accept
+            return;
+        }
 
         // Scan CONTROL_NO (contoh: 10 digit)
         if (/^\d{10}$/.test(val)) {

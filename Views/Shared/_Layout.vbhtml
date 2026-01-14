@@ -9,6 +9,21 @@
 </head>
 
 <body>
+    <!-- Offline Indicator -->
+    <div id="offlineBanner"
+         style="display:none;
+            position:fixed;
+            top:0;
+            left:0;
+            width:100%;
+            background:red;
+            color:white;
+            text-align:center;
+            padding:6px 0;
+            font-weight:700;
+            z-index:9999;">
+        ⚠ You are offline
+    </div>
     <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-dark bg-dark">
         <div class="container">
             @Html.ActionLink("Lot Traceability", "Create", "Batch", New With {.area = ""}, New With {.class = "navbar-brand"})
@@ -23,6 +38,7 @@
                     <li>@Html.ActionLink("Process", "StartProcess", "Process", New With {.area = ""}, New With {.class = "nav-link"})</li>
                     <li>@Html.ActionLink("Process Master", "ProcessMaster", "Process", New With {.area = ""}, New With {.class = "nav-link"})</li>
                     <li>@Html.ActionLink("Final Process", "FinalProcess", "Process", New With {.area = ""}, New With {.class = "nav-link"})</li>
+                    <li>@Html.ActionLink("Buffer", "Index", "Buffer", New With {.area = ""}, New With {.class = "nav-link"})</li>
                 </ul>
 
                 <!-- ⭐ CLOCK DI HUJUNG KANAN -->
@@ -704,7 +720,7 @@
         // Run on load
         document.addEventListener("DOMContentLoaded", attachKeyboardInputs);
     </script>
-    
+
     <script>
         function updateClock() {
             const now = new Date();
@@ -802,6 +818,29 @@
         // Masih run bila resize
         window.addEventListener('resize', checkFullscreen);
 
+    </script>
+    <script>
+        window.addEventListener("load", function () {
+            const banner = document.getElementById("offlineBanner");
+            const submitBtn = document.getElementById("submitBtn");
+
+            function updateOfflineStatus() {
+                if (!navigator.onLine) {
+                    banner.style.display = "block";
+                    if (submitBtn) submitBtn.disabled = true;
+                } else {
+                    banner.style.display = "none";
+                    if (submitBtn) submitBtn.disabled = false;
+                }
+            }
+
+            // Initial check
+            updateOfflineStatus();
+
+            // Listen to online/offline events
+            window.addEventListener("online", updateOfflineStatus);
+            window.addEventListener("offline", updateOfflineStatus);
+        });
     </script>
 </body>
 </html>

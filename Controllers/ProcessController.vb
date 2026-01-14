@@ -1,6 +1,7 @@
 ﻿Imports System.Data.SqlClient
 Imports System.IO
 Imports System.Web.Mvc
+Imports Microsoft.VisualBasic.Logging
 Imports Newtonsoft.Json
 Imports QRCoder
 
@@ -54,6 +55,17 @@ Public Class ProcessController
 
         If activeLogs.Any(Function(l) l.ProcessID = scannedProcess.ID) Then
             ViewData("StatusMessage") = $"Process {scannedProcess.Name} already in progress."
+
+            Dim proc = processes.First(Function(p) p.ID = scannedProcess.ID)
+            If proc.MaterialFlag = 1 AndAlso Not DbHelper.HasMaterialForProcess(traceId, proc.ID) Then
+                ViewData("StatusMessage") = $"Material not scanned for {proc.Name}."
+                Return RedirectToAction(
+                "ProcessMaterial",
+                "Process",
+                New With {.traceId = traceId, .procId = scannedProcess.ID}
+            )
+            End If
+
             Return View("~/Views/Process/StartProcess.vbhtml")
         End If
 
@@ -85,7 +97,12 @@ Public Class ProcessController
         For Each log In prevLogs
             Dim proc = processes.First(Function(p) p.ID = log.ProcessID)
             If proc.MaterialFlag = 1 AndAlso Not DbHelper.HasMaterialForProcess(traceId, proc.ID) Then
-                ViewData("StatusMessage") = $"Material not scanned for {proc.Name}."
+                ViewData("StatusMessage") = $"Material not scanned for {proc.Name}. <br> Please re-scan again to enter material."
+                '    Return RedirectToAction(
+                '    "ProcessMaterial",
+                '    "Process",
+                '    New With {.traceId = traceId, .procId = scannedProcess.ID}
+                ')
                 Return View("~/Views/Process/StartProcess.vbhtml")
             End If
         Next
@@ -154,6 +171,16 @@ Public Class ProcessController
         ViewData("Logs") = logs
 
         Return View()
+    End Function
+
+    <HttpPost>
+    Public Function DeleteTraceMaterial(id As Integer) As ActionResult
+        Try
+            DbHelper.DeleteTraceMaterial(id)
+            Return Content("OK")
+        Catch ex As Exception
+            Return Content(ex.Message)
+        End Try
     End Function
 
     Public Function ProcessBuffer(traceId As String, procId As Integer) As ActionResult
@@ -262,7 +289,7 @@ Public Class ProcessController
             cmd.Parameters.AddWithValue("@ControlNo", controlNo)
             Dim traceId = cmd.ExecuteScalar()
             If traceId Is Nothing Then
-                Return Json(New With {.success = False, .message = "Process not found."})
+                Return Json(New With {.success = False, .message = "Trace ID not found."})
             End If
             Return Json(New With {.success = True, .traceID = traceId.ToString()})
         End Using
@@ -437,12 +464,56 @@ Public Class ProcessController
                     batch:=batch,
                      qtyReject:=qtyReject
                 )
-                'qtyOut:=finalQtyOut,
-                Return Json(New With {
-                    .success = True,
-                    .redirectUrl = Url.Action("FinalProcess", "Process")
-                })
 
+                Dim bufferQty As Integer
+                'If bufferQty < 0 Then bufferQty = 0
+
+                Using conn As New SqlConnection(DbHelper.GetConnectionString("BatchDB"))
+                    conn.Open()
+                    Dim cmd As New SqlCommand("
+                        SELECT qty_out FROM pp_trace_processes WHERE id = @LogID
+                    ", conn)
+
+                    cmd.Parameters.AddWithValue("@LogID", log.ID)
+                    bufferQty = Convert.ToInt32(cmd.ExecuteScalar())
+                End Using
+
+                If bufferQty > 0 Then
+                    Debug.WriteLine(bufferQty & "up")
+
+                    Dim activeBufferTrace = DbHelper.GetActiveBufferTrace(DateTime.Today)
+                    If activeBufferTrace Is Nothing OrElse activeBufferTrace.TotalQty + bufferQty > 1392 Then
+                        activeBufferTrace = DbHelper.CreateNewBufferTrace(DateTime.Today, bufferQty, log.OperatorID, log.TraceID)
+                    End If
+
+                    DbHelper.InsertBufferMap(activeBufferTrace.TraceID, batch.TraceID, bufferQty)
+                    DbHelper.UpdateBufferTraceQty(activeBufferTrace.TraceID, log.OperatorID)
+                    Debug.WriteLine(bufferQty & "down")
+                End If
+
+                'Dim pdfBytes = PdfHelper.GenerateTracePdf(batch.TraceID)
+                'Response.Clear()
+                'Response.ContentType = "application/pdf"
+                'Response.AddHeader("content-disposition", $"attachment;filename={batch.TraceID}.pdf")
+                'Response.OutputStream.Write(pdfBytes, 0, pdfBytes.Length)
+                'Response.Flush()
+
+                ''qtyOut:=finalQtyOut,
+                'Return Json(New With {
+                '    .success = True,
+                '    .redirectUrl = Url.Action("FinalProcess", "Process")
+                '})
+                ' ✅ Generate PDF
+                'Dim pdfBytes = PdfHelper.GenerateTracePdf(batch.TraceID)
+
+                '' Return PDF as file download
+                'Return File(pdfBytes, "application/pdf", $"{batch.TraceID}.pdf")
+
+                Return Json(New With {
+                .success = True,
+                .isFinal = True,
+                .traceId = batch.TraceID
+            })
             Else
                 ' 🟢 NON-FINAL BUFFER
                 DbHelper.CompleteBufferRejectOnly(
@@ -455,6 +526,7 @@ Public Class ProcessController
 
                 Return Json(New With {
                     .success = True,
+                    .isFinal = False,
                     .redirectUrl = Url.Action("ProcessBatch", "Process", New With {.traceId = batch.TraceID})
                 })
             End If
@@ -462,6 +534,76 @@ Public Class ProcessController
         Catch ex As Exception
             Return Json(New With {.success = False, .message = ex.Message})
         End Try
+    End Function
+
+    '=======================
+    ' PDF Download Action
+    '=======================
+    Public Function CheckPdfStatus(traceId As String) As JsonResult
+        Dim printedDate As Object = Nothing
+
+        Using conn As New SqlConnection(DbHelper.GetConnectionString("BatchDB"))
+            conn.Open()
+            Dim cmd As New SqlCommand("
+            SELECT printed_date
+            FROM pp_trace_buffer_map
+            WHERE ori_trace_id = @TraceID
+        ", conn)
+            cmd.Parameters.AddWithValue("@TraceID", traceId)
+            printedDate = cmd.ExecuteScalar()
+        End Using
+
+        Dim alreadyPrinted As Boolean =
+        printedDate IsNot Nothing AndAlso printedDate IsNot DBNull.Value
+
+        Return Json(New With {
+        .alreadyPrinted = alreadyPrinted
+    }, JsonRequestBehavior.AllowGet)
+    End Function
+
+    Public Function DownloadTracePdf(traceId As String, Optional forceNew As Boolean = False) As ActionResult
+        Dim folderPath As String = "C:\Temp\TracePdfs\"
+
+        ' ✅ Create folder if not exist
+        If Not Directory.Exists(folderPath) Then
+            Directory.CreateDirectory(folderPath)
+        End If
+
+        Dim pdfPath As String = Path.Combine(folderPath, traceId & ".pdf")
+        Dim pdfBytes() As Byte
+
+        ' Check if PDF exists
+        If Not forceNew AndAlso System.IO.File.Exists(pdfPath) Then
+            ' Serve existing PDF
+            pdfBytes = System.IO.File.ReadAllBytes(pdfPath)
+        Else
+            ' Generate new PDF
+            pdfBytes = PdfHelper.GenerateTracePdf(traceId)
+            System.IO.File.WriteAllBytes(pdfPath, pdfBytes)
+
+            ' Update printed_date ONLY when new PDF is created
+            Using conn As New SqlConnection(DbHelper.GetConnectionString("BatchDB"))
+                conn.Open()
+                Dim cmd As New SqlCommand("
+                UPDATE pp_trace_buffer_map
+                SET printed_date = GETDATE()
+                WHERE ori_trace_id = @TraceID
+            ", conn)
+                cmd.Parameters.AddWithValue("@TraceID", traceId)
+                cmd.ExecuteNonQuery()
+            End Using
+        End If
+        Return File(pdfBytes, "application/pdf", traceId & ".pdf")
+    End Function
+
+    Public Function OpenExistingPdf(traceId As String) As ActionResult
+        Dim folderPath As String = "C:\Temp\TracePdfs\"
+        Dim pdfPath As String = Path.Combine(folderPath, traceId & ".pdf")
+        If Not System.IO.File.Exists(pdfPath) Then
+            Return HttpNotFound("PDF not found")
+        End If
+        Dim bytes = System.IO.File.ReadAllBytes(pdfPath)
+        Return File(bytes, "application/pdf")
     End Function
 
     Private Function LoadBatch(traceId As String) As Batch

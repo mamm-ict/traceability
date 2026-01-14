@@ -2,101 +2,94 @@
     ViewData("Title") = "Route Card"
 
     If Not String.IsNullOrEmpty(ViewData("ControlNo")) Then
-        ViewData("ShowScanModal") = False  ' <-- flag to trigger scan modal
-        System.Diagnostics.Debug.WriteLine("Ni debug" & ViewData("ControlNo") & ViewData("TraceID"))
+        ViewData("ShowScanModal") = False
     Else
-        System.Diagnostics.Debug.WriteLine("Takde control no")
-        ViewData("ShowScanModal") = True  ' <-- flag to trigger scan modal
-
+        ViewData("ShowScanModal") = True
     End If
 End Code
+<style>
+/* Override for fullscreen / wide screens */
+@@media (min-width: 900px) {
+    .mes-card {
+        margin-left: 50px; /* or any left padding you want */
+        margin-right: auto; /* keep right side flexible */
+    }
 
-<h1 class="mes-title">Route Card</h1>
+    /* Keep trace ID left-aligned */
+    .mes-card h2 {
+        text-align: left !important;
+    }
 
-<div class="mes-card mes-process-card" style="padding-top:25px;">
+    /* Left column info stays left */
+    .mes-card > div {
+        justify-content: flex-start !important;
+        text-align: left !important;
+    }
+}
+</style>
 
-    <!-- TRACE ID FULL WIDTH -->
-    <h2 class="mes-card-title" style="text-align:center; margin-bottom:20px;">
+<h1 class="mes-title" style="margin-bottom:20px;">Route Card</h1>
+
+<div class="mes-card" style="
+    max-width:600px;
+    margin:auto;
+    padding:25px;
+    border-radius:12px;
+    background:#fff;
+    box-shadow:0 4px 20px rgba(0,0,0,0.12);
+    font-family:'Segoe UI', sans-serif;
+">
+
+    <!-- TRACE ID HEADER -->
+    <h2 style="
+        text-align:center;
+        font-size:1.6rem;
+        font-weight:700;
+        color:#1a73e8;
+        margin-bottom:25px;
+    ">
         @ViewData("TraceID")
     </h2>
 
-    <!-- TWO COLUMN WRAPPER -->
-    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:25px;">
-
+    <!-- INFO GRID -->
+    <div style="
+        display:flex;
+        justify-content:space-between;
+        gap:25px;
+        flex-wrap:wrap;
+    ">
         <!-- LEFT COLUMN -->
-        <div style="flex:1;">
+        <div style="flex:1; min-width:250px; color:#444;">
             <p><strong>Date:</strong> @ViewData("CreatedDate")</p>
             <p><strong>Shift:</strong> @ViewData("Shift")</p>
             <p><strong>Quantity:</strong> @ViewData("InitQty") pcs</p>
             <p><strong>Model:</strong> @ViewData("Model")</p>
             <p><strong>Line:</strong> @ViewData("Line")</p>
             <p><strong>Operator:</strong> @ViewData("OperatorID")</p>
-            <p><strong>Bara Core:</strong> @ViewData("BaraCoreLot")</p>
+            <p><strong>Bara Core Lot:</strong> @ViewData("BaraCoreLot")</p>
         </div>
 
-        <!-- RIGHT COLUMN (QR) -->
+        <!-- RIGHT COLUMN: QR CODE -->
         <div style="flex:0 0 auto; text-align:center;">
             <img src="data:image/png;base64,@(ViewData("QRCodeImage"))"
-                 class="mes-qr-large"
-                 style="max-width:220px;" />
+                 style="
+                    max-width:180px;
+                    border:1px solid #ccc;
+                    padding:5px;
+                    border-radius:6px;
+                    background:#fff;
+                " />
+            <p style="margin-top:6px; font-size:0.85rem; color:#555;">Scan QR for details</p>
         </div>
-
     </div>
 
+    <!-- FOOTER / AUTO REDIRECT INFO -->
+    <div style="margin-top:20px; text-align:center; color:#555; font-size:0.9rem;">
+        <span>Auto-redirecting in <span id="timer">20</span> seconds...</span>
+    </div>
 </div>
 
-<!-- ========================================================= -->
-<h2 class="mes-card-title" style="text-align:center; margin-bottom:15px;">
-    ESL 2.9" Landscape
-</h2>
-
-<div style="
-    width: 340px;
-    height: 150px;
-    border:1px solid #000;
-    padding:12px 14px;
-    margin:auto;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    font-family:Arial, sans-serif;
-    border-radius:8px;
-">
-
-    <!-- LEFT TEXT -->
-    <div style="flex:1; line-height:1.25;">
-        <p style="font-size:20px; margin:0 0 6px 0; font-weight:700; color:#1d3557;">
-            @ViewData("Model")
-        </p>
-
-        <p style="font-size:14px; margin:3px 0;">
-            <strong>ID:</strong> @ViewData("TraceID")
-        </p>
-
-        <p style="font-size:14px; margin:3px 0;">
-            <strong>Bara Core:</strong> @ViewData("BaraCoreLot")
-        </p>
-
-        <p style="font-size:14px; margin:3px 0;">
-            <strong>Qty:</strong> @ViewData("InitQty") pcs
-        </p>
-    </div>
-
-    <!-- QR -->
-    <div style="flex:0 0 auto; text-align:right;">
-        <img src="data:image/png;base64,@(ViewData("QRCodeImage"))"
-             style="
-                width:95px;
-                height:95px;
-                border:1px solid #444;
-                padding:3px;
-                background:#fff;
-                border-radius:4px;
-            " />
-    </div>
-
-</div>
-
+<!-- SCAN MODAL -->
 <div id="scanModal" style="
     display:none;
     position:fixed;
@@ -107,96 +100,99 @@ End Code
 ">
     <div style="
         background:#fff;
-        padding:25px 30px;
-        border-radius:8px;
-        max-width:600px;
-        width:100%;
+        padding:30px 35px;
+        border-radius:10px;
+        max-width:500px;
+        width:90%;
         text-align:center;
-        box-shadow:0 4px 15px rgba(0,0,0,0.3);
+        box-shadow:0 6px 20px rgba(0,0,0,0.25);
     ">
         <h3 style="margin-bottom:15px;">Scan Route Card</h3>
         <input type="text" id="ControlNoInput" class="mes-input" placeholder="Scan Control Card" autofocus />
         <p id="ControlNoStatus" style="margin-top:10px; font-weight:700;"></p>
-        <button id="closeModalBtn" class="mes-btn" style="margin-top:15px; width:auto; padding:8px 16px;">Close</button>
+        <button id="closeModalBtn" class="mes-btn" style="margin-top:20px; width:auto; padding:10px 20px;">Close</button>
     </div>
 </div>
 
+<p style="text-align:center; margin-top:20px;">
+    <a class="mes-link" href="@Url.Action("Create", "Batch")">Back</a>
+</p>
+
+<!-- TIMER & AUTO REDIRECT -->
+<script>
+    let countdown = 20;
+    const timerDisplay = document.getElementById("timer");
+
+    function startTimer() {
+        timerDisplay.textContent = countdown;
+        const interval = setInterval(() => {
+            countdown--;
+            timerDisplay.textContent = countdown;
+            if(countdown <= 0){
+                clearInterval(interval);
+                window.location.href = '@Url.Action("Create", "Batch")';
+            }
+        }, 1000);
+    }
+    startTimer();
+</script>
+
+<!-- SCAN MODAL LOGIC -->
 <script>
 window.addEventListener("DOMContentLoaded", () => {
-
     const modal = document.getElementById("scanModal");
-    const controlInput = document.getElementById("ControlNoInput");
-    const statusMsg = document.getElementById("ControlNoStatus");
+    const input = document.getElementById("ControlNoInput");
+    const status = document.getElementById("ControlNoStatus");
     const closeBtn = document.getElementById("closeModalBtn");
 
     const showModal = @((If(ViewData("ShowScanModal") IsNot Nothing AndAlso ViewData("ShowScanModal") = True, "true", "false")));
-    if (showModal === true || showModal === "true") {
+    if(showModal === true || showModal === "true"){
         modal.style.display = "flex";
-        controlInput.focus();
+        input.focus();
     }
 
-    // Disable manual close while empty
     closeBtn.addEventListener("click", () => {
-        if (!controlInput.value.trim()) {
+        if(!input.value.trim()){
             alert("You must enter a Control Number before closing!");
-            controlInput.focus();
+            input.focus();
         } else {
             modal.style.display = "none";
         }
     });
 
-    // Force focus on modal
-    modal.addEventListener("click", (e) => {
-        if (e.target === modal) {
-            controlInput.focus();
-        }
+    modal.addEventListener("click", e => {
+        if(e.target === modal) input.focus();
     });
 
-    controlInput.addEventListener("change", function () {
+    input.addEventListener("change", function(){
         const controlNo = this.value.trim();
-        if (!controlNo) return;
+        if(!controlNo) return;
 
-        fetch('@Url.Action("AddControlNo", "Batch")', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                traceID: '@ViewData("TraceID")',
-                controlNo: controlNo
-            })
+        fetch('@Url.Action("AddControlNo","Batch")',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({traceID:'@ViewData("TraceID")', controlNo:controlNo})
         })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                statusMsg.style.color = 'green';
-                statusMsg.textContent = data.message;
-
-                setTimeout(() => { modal.style.display = "none"; }, 1000);
-
+        .then(r=>r.json())
+        .then(data=>{
+            if(data.success){
+                status.style.color='green';
+                status.textContent = data.message;
+                setTimeout(()=>{modal.style.display='none';},1000);
             } else {
-                statusMsg.style.color = 'red';
-                statusMsg.innerHTML = data.message.replace(/\n/g, "<br>");
-
+                status.style.color='red';
+                status.innerHTML = data.message.replace(/\n/g,"<br>");
                 this.value = "";
                 this.focus();
             }
         })
-        .catch(err => {
+        .catch(err=>{
             console.error(err);
-            statusMsg.style.color = 'red';
-            statusMsg.textContent = "Failed to save control card.";
-            this.value = "";
+            status.style.color='red';
+            status.textContent = "Failed to save control card.";
+            this.value="";
             this.focus();
         });
     });
 });
-
-</script>
-
-<p>
-    <a class="mes-link" href="@Url.Action("Index", "History")">Back</a>
-</p>
-<script>
-    setTimeout(function () {
-        window.location.href = '@Url.Action("Create", "Batch")';
-    }, 20000); 
 </script>

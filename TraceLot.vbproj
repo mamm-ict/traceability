@@ -196,6 +196,7 @@
     <Compile Include="App_Start\FilterConfig.vb" />
     <Compile Include="App_Start\RouteConfig.vb" />
     <Compile Include="Controllers\BatchController.vb" />
+    <Compile Include="Controllers\BufferController.vb" />
     <Compile Include="Controllers\HistoryController.vb" />
     <Compile Include="Controllers\ProcessController.vb" />
     <Compile Include="DbHelper.vb" />
@@ -207,6 +208,7 @@
     <Compile Include="Models\MaterialMaster.vb" />
     <Compile Include="Models\ProcessLog.vb" />
     <Compile Include="Models\ProcessMaster.vb" />
+    <Compile Include="Models\TraceBuffer.vb" />
     <Compile Include="My Project\AssemblyInfo.vb" />
     <Compile Include="My Project\Application.Designer.vb">
       <AutoGen>True</AutoGen>
@@ -222,6 +224,8 @@
       <DependentUpon>Settings.settings</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
+    <Compile Include="PdfHelper.vb" />
+    <Compile Include="TimeProvider.vb" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="My Project\Resources.resx">
@@ -276,6 +280,8 @@
     </None>
     <None Include="packages.config" />
     <Content Include="favicon.ico" />
+    <Content Include="favicon.png" />
+    <Content Include="logo.PNG" />
     <Content Include="Scripts\bootstrap.bundle.js" />
     <Content Include="Scripts\bootstrap.bundle.min.js" />
     <Content Include="Scripts\bootstrap.esm.js" />
@@ -295,6 +301,7 @@
     <Content Include="Scripts\jquery-3.7.0.slim.min.js" />
     <Content Include="Scripts\jquery-3.7.0.slim.min.map" />
     <Content Include="Scripts\jquery-3.7.0.min.map" />
+    <Content Include="service-worker.js" />
     <Content Include="Views\History\Index.vbhtml" />
     <Content Include="Views\Batch\ShowQR.vbhtml" />
     <Content Include="Views\Batch\Create.vbhtml" />
@@ -306,6 +313,7 @@
     <Content Include="Views\Process\ProcessMaterial.vbhtml" />
     <Content Include="Views\Process\ProcessBuffer.vbhtml" />
     <Content Include="Views\Process\FinalProcess.vbhtml" />
+    <Content Include="Views\Buffer\Index.vbhtml" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Global.asax" />
@@ -347,7 +355,7 @@
           <AutoAssignPort>True</AutoAssignPort>
           <DevelopmentServerPort>49287</DevelopmentServerPort>
           <DevelopmentServerVPath>/</DevelopmentServerVPath>
-          <IISUrl>https://localhost:44334/</IISUrl>
+          <IISUrl>http://localhost:49287/</IISUrl>
           <NTLMAuthentication>False</NTLMAuthentication>
           <UseCustomServer>False</UseCustomServer>
           <CustomServerUrl>

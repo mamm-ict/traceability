@@ -9,13 +9,13 @@ End Code
 
 <div class="mes-container">
     <form method="post" action="/Batch/Create" class="mes-panel">
-        <div class="mes-title">Create Batch</div>
+        <div class="mes-title">Create Route Card</div>
 
         <div class="mes-grid">
 
             <div>
                 <label class="mes-label">Model</label>
-                <input type="text" name="Model" value="@ViewData("Model")" class="mes-input vk-input" placeholder="Model" required>
+                <input type="text" name="Model" value="M36N" class="mes-input vk-input" placeholder="Model" required>
             </div>
 
             <div>
@@ -42,8 +42,14 @@ End Code
 
             <div>
                 <label class="mes-label">Line No</label>
-                <input type="text" name="Line" value="@ViewData("Line")" class="mes-input vk-input" placeholder="Line No" required>
+                <select name="Line" id="Line" class="mes-input vk-input" required>
+                    <option disabled selected hidden value="">Select</option>
+
+                    <option value="1" @(If(ViewData("Line") = "1", "selected", ""))>Line 1</option>
+                    <option value="2" @(If(ViewData("Line") = "2", "selected", ""))>Line 2</option>
+                </select>
             </div>
+
 
             <div>
                 <label class="mes-label">Operator No</label>
@@ -194,6 +200,13 @@ End Code
             partSelect.addEventListener("change", checkForm);
             partSelect.addEventListener("focus", () => partSelect.dataset.touched = "true");
             partSelect.addEventListener("blur", checkForm);
+        }
+
+        const lineSelect = document.querySelector("select[name='Line']");
+        if (lineSelect) {
+            lineSelect.addEventListener("change", checkForm);
+            lineSelect.addEventListener("focus", () => lineSelect.dataset.touched = "true");
+            lineSelect.addEventListener("blur", checkForm);
         }
     }
 

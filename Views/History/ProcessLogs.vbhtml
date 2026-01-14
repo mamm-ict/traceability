@@ -35,3 +35,8 @@ End Code
 Else
     @<p>No process logs yet.</p>
 End If
+<script>
+    setTimeout(function () {
+        window.location.href = '@Url.Action("Index", "History")';
+    }, 20000);
+</script>

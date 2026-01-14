@@ -36,11 +36,11 @@ End Code
             <input type="hidden" id="logId" value="@pendingLog.ID" />
 
             <!-- INPUT BUFFER -->
-            <label class="mes-label">Qty Out</label>
-            <input type="number" id="qtyOut" class="mes-input" min="0" placeholder="Enter Qty Out" />
+            <label class="mes-label" hidden>Qty Out</label>
+            <input type="number" id="qtyOut" class="mes-input" min="0" placeholder="Enter Qty Out" hidden />
 
             <label class="mes-label">Qty Reject</label>
-            <input type="number" id="qtyReject" class="mes-input" min="0" placeholder="Enter Qty Reject" />
+            <input type="number" id="qtyReject" class="mes-input vk-input" min="0" placeholder="Enter Qty Reject" />
 
             <button class="mes-btn-primary" id="submitBuffer">Submit</button>
 
@@ -108,11 +108,11 @@ End Code
 <script>
     let autoRedirectTimer;
 
-    let countdown = 20;
+    let countdown = 200;
     const timerDisplay = document.getElementById("timer");
 
     function startAutoRedirect() {
-        countdown = 20;
+        countdown = 200;
         timerDisplay.textContent = countdown;
         if (autoRedirectTimer) clearTimeout(autoRedirectTimer);
 
@@ -152,13 +152,22 @@ End Code
         .then(r => r.json())
         .then(res => {
             if (!res.success) {
-                alert(res);
+                alert(res.message);
                 btn.disabled = false;
                 return;
             }
 
-            clearInterval(autoRedirectTimer); 
-            window.location.href = "@Url.Action("ProcessBatch", "Process", New With {.TraceID = batch.TraceID})"; // redirect immediately
+            clearInterval(autoRedirectTimer);
+            if (res.isFinal) {
+                // buka PDF dalam tab baru
+                window.open("@Url.Action("DownloadTracePdf", "Process")?traceId=" + res.traceId, "_blank");
+
+                // redirect ke ProcessBatch
+                window.location.href = "@Url.Action("ProcessBatch", "Process", New With {.TraceID = batch.TraceID})";
+            } else {
+                // Non-final: redirect seperti biasa
+                window.location.href = res.redirectUrl;
+            }
         })
         .catch(err => {
             alert("Error submitting buffer: " + err);

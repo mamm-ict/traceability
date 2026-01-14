@@ -10,6 +10,8 @@ Public Class BatchController
 
     ' GET: Batch/Create
     Public Overloads Function Create() As ActionResult
+        'TimeProvider.FakeTime = DateTime.Parse("2026-01-12 07:00:00")
+        Debug.WriteLine(TimeProvider.Now & " shift: " & GetCurrentShift())
         ViewData("PartMasters") = DbHelper.GetPartMasters()
 
         Dim batch As Batch = Nothing
@@ -17,7 +19,7 @@ Public Class BatchController
         Using conn As New SqlConnection(DbHelper.GetConnectionString("BatchDB"))
             conn.Open()
 
-            Dim todayPrefix As String = "PPA-" & DateTime.Now.ToString("yyyyMMdd") & "-"
+            Dim todayPrefix As String = "PPA-" & TimeProvider.Now.ToString("yyyyMMdd") & "-"
             Dim cmd As New SqlCommand("SELECT * FROM pp_trace_route WHERE control_no is NULL  AND trace_id LIKE @TodayPrefix ", conn)
             cmd.Parameters.AddWithValue("@TodayPrefix", todayPrefix & "%")
             Using reader = cmd.ExecuteReader()
@@ -51,10 +53,10 @@ Public Class BatchController
     <HttpPost>
     Public Overloads Function Create(batchData As FormCollection) As ActionResult
         Dim BaraCoreDate As DateTime = Convert.ToDateTime(batchData("BaraCoreDate"))
-
+        'Dim traceId = DbHelper.GenerateTraceID()
         ' Create batch object
         Dim batch As New Batch With {
-            .TraceID = GenerateTraceID(),
+            .TraceID = DbHelper.GenerateTraceID(),
             .Model = batchData("Model"),
             .PartCode = batchData("PartCode"),
             .InitQty = batchData("InitQty"),
@@ -66,8 +68,8 @@ Public Class BatchController
             .OperatorID = batchData("OperatorID"),
             .BaraCoreDate = BaraCoreDate,
             .BaraCoreLot = GenerateBaraCoreLot(BaraCoreDate),
-            .CreatedDate = DateTime.Now,
-            .UpdateDate = DateTime.Now
+            .CreatedDate = TimeProvider.Now,
+            .UpdateDate = TimeProvider.Now
         }
 
         Using conn As New SqlConnection(DbHelper.GetConnectionString("BatchDB"))
@@ -236,11 +238,15 @@ Public Class BatchController
             Return Json(New With {.success = False, .message = "Control number cannot be empty!"})
         End If
 
+        If controlNo.Length <> 10 Then
+            Return Json(New With {.success = False, .message = "Control number invalid!"})
+        End If
+
         Using conn As New SqlConnection(DbHelper.GetConnectionString("BatchDB"))
             conn.Open()
 
             ' 2. Check if control_no already used for today's batches
-            Dim todayPrefix As String = "PPA-" & DateTime.Now.ToString("yyyyMMdd") & "-"
+            Dim todayPrefix As String = "PPA-" & TimeProvider.Now.ToString("yyyyMMdd") & "-"
             Dim checkCmd As New SqlCommand("
                 SELECT last_proc_code, trace_id
                 FROM pp_trace_route
@@ -285,40 +291,46 @@ Public Class BatchController
         Return Json(New With {.success = True, .message = "Control number saved successfully!"})
     End Function
 
-    Private Function GenerateTraceID() As String
-        Dim today As String = DateTime.Now.ToString("yyyyMMdd")
-        Dim seq As Integer = 1
+    'Private Function GenerateTraceID() As String
+    '    Dim today As String = DateTime.Now.ToString("yyyyMMdd")
+    '    Dim seq As Integer = 1
 
-        Using conn As New SqlConnection(DbHelper.GetConnectionString("BatchDB"))
-            conn.Open()
+    '    Using conn As New SqlConnection(DbHelper.GetConnectionString("BatchDB"))
+    '        conn.Open()
 
-            Dim cmd As New SqlCommand("
-            SELECT TOP 1 trace_id FROM pp_trace_route
-            WHERE trace_id LIKE 'PPA-" & today & "-%' 
-            ORDER BY trace_id DESC 
-        ", conn)
+    '        Dim cmd As New SqlCommand("
+    '        SELECT TOP 1 trace_id FROM pp_trace_route
+    '        WHERE trace_id LIKE 'PPA-" & today & "-%' 
+    '        ORDER BY trace_id DESC 
+    '    ", conn)
 
-            Dim lastIDObj = cmd.ExecuteScalar()
+    '        Dim lastIDObj = cmd.ExecuteScalar()
 
-            If lastIDObj IsNot Nothing Then
-                Dim lastID As String = lastIDObj.ToString()
-                Dim parts = lastID.Split("-"c)
-                seq = Convert.ToInt32(parts(2)) + 1
-            End If
-        End Using
+    '        If lastIDObj IsNot Nothing Then
+    '            Dim lastID As String = lastIDObj.ToString()
+    '            Dim parts = lastID.Split("-"c)
+    '            seq = Convert.ToInt32(parts(2)) + 1
+    '        End If
+    '    End Using
 
-        Return "PPA-" & today & "-" & seq.ToString("000")
-    End Function
+    '    Return "PPA-" & today & "-" & seq.ToString("000")
+    'End Function
 
     Private Function GetCurrentShift() As String
         Dim schedule As String = Server.MapPath("~/Config/schedule.txt")
-
         Dim lines() As String = System.IO.File.ReadAllLines(schedule)
-        Dim shiftA As TimeSpan = TimeSpan.Parse(lines(0))
-        Dim shiftC As TimeSpan = TimeSpan.Parse(lines(1))
-        Dim nowTime As TimeSpan = DateTime.Now.TimeOfDay
 
-        Return If(nowTime >= shiftA AndAlso nowTime < shiftC, "A", "C")
+        Dim shiftA As TimeSpan = TimeSpan.ParseExact(lines(0).Trim(), "hh\:mm", Nothing)
+        Dim shiftC As TimeSpan = TimeSpan.ParseExact(lines(1).Trim(), "hh\:mm", Nothing)
+        Dim nowTime As TimeSpan = TimeProvider.Now.TimeOfDay
+
+        ' Shift A: 07:45 - 19:44:59
+        ' Shift C: 19:45 - 07:44:59 (cross midnight)
+        If nowTime >= shiftA AndAlso nowTime < shiftC Then
+            Return "A"
+        Else
+            Return "C"
+        End If
     End Function
 
     Private Function GetLastProcess() As String
