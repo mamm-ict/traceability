@@ -5,7 +5,7 @@
         batch = CType(ViewData("Batch"), Batch)
     End If
 End Code
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="~/Scripts/jquery-3.7.0.min.js"></script>
 
 <div class="mes-container">
     <form method="post" action="/Batch/Create" class="mes-panel">

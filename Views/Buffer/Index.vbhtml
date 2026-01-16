@@ -22,8 +22,8 @@
     Next
 
 End Code
-<link rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+<script src="C:\Users\mys360114\Projects\traceability\Content\all.min.css"></script>
+
 <style>
     .mes-btn-pdf {
         background: #dc3545;
@@ -176,19 +176,21 @@ End Code
     #modalClose:hover {
         background: #5c636a;
     }
+
     .mes-table {
         width: 100%;
         table-layout: fixed;
     }
+
     .col-hidden {
         display: none;
     }
+
     .mes-table td,
     .mes-table th {
         padding: 10px 12px;
         white-space: nowrap;
     }
-
 </style>
 <h1 class="mes-title">
     Completed Batches
@@ -225,7 +227,7 @@ End Code
                         @row("PartCode")
                     </td>
 
-                    <td >
+                    <td>
                         @row("CurQty")
                     </td>
 
@@ -233,7 +235,7 @@ End Code
                         @row("ProcID")
                     </td>
 
-                    <td >
+                    <td>
                         @row("QtyOut")
                     </td>
 

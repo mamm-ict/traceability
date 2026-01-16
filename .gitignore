@@ -363,3 +363,8 @@ MigrationBackup/
 FodyWeavers.xsd
 /App_Data/TracePdfs
 /t
+/Data
+/js
+*.js
+/Offline.html
+/service-worker.js
