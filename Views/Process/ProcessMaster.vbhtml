@@ -30,7 +30,7 @@
     End Functions
 End Code
 
-<h2 class="mes-title" style="margin-top:10px;">Process QR Codes</h2>
+<h2 class="mes-title" style="margin-top:10px;">Process Master</h2>
 
 <div class="mes-container">
     <div class="mes-panel">
@@ -54,7 +54,7 @@ End Code
                 <thead>
                     <tr>
                         <th> No</th>
-                        <th> Process Code</th>
+                        <th> Machine</th>
                         <th> QR Code</th>
                     </tr>
                 </thead>

@@ -14,12 +14,46 @@ Public Class BatchController
         Debug.WriteLine(TimeProvider.Now & " shift: " & GetCurrentShift())
         ViewData("PartMasters") = DbHelper.GetPartMasters()
 
+        Dim dieLines As New List(Of SelectListItem)
+
+        Using conn As New SqlConnection(DbHelper.GetConnectionString("BatchDB"))
+            conn.Open()
+
+            Dim cmd As New SqlCommand("
+        SELECT die, line 
+        FROM pp_master_die
+        ORDER BY die, line
+    ", conn)
+
+            Using rdr = cmd.ExecuteReader()
+                While rdr.Read()
+                    Dim dieRaw = rdr("die").ToString()     ' D1
+                    Dim lineRaw = rdr("line").ToString()   ' L1
+
+                    'Dim dieNo = dieRaw.Substring(1)        ' 1
+                    'Dim lineNo = lineRaw.Substring(1)      ' 1
+                    Dim dieNo = Regex.Replace(dieRaw, "[^\d]", "")
+                    Dim lineNo = Regex.Replace(lineRaw, "[^\d]", "")
+
+
+                    dieLines.Add(New SelectListItem With {
+                .Value = dieRaw & "|" & lineRaw,   ' D1|L1
+                .Text = $"DIE {dieNo} | LINE {lineNo}"
+            })
+                End While
+            End Using
+        End Using
+
+        ViewData("DieLines") = dieLines
+
         Dim batch As Batch = Nothing
 
         Using conn As New SqlConnection(DbHelper.GetConnectionString("BatchDB"))
             conn.Open()
 
-            Dim todayPrefix As String = "PPA-" & TimeProvider.Now.ToString("yyyyMMdd") & "-"
+            Dim traceDate = TimeProvider.GetTraceDate()  ' ← shift aware
+            Dim todayPrefix As String = "PPA-" & traceDate.ToString("yyyyMMdd") & "-"
+
             Dim cmd As New SqlCommand("SELECT * FROM pp_trace_route WHERE control_no is NULL  AND trace_id LIKE @TodayPrefix ", conn)
             cmd.Parameters.AddWithValue("@TodayPrefix", todayPrefix & "%")
             Using reader = cmd.ExecuteReader()
@@ -53,6 +87,12 @@ Public Class BatchController
     <HttpPost>
     Public Overloads Function Create(batchData As FormCollection) As ActionResult
         Dim BaraCoreDate As DateTime = Convert.ToDateTime(batchData("BaraCoreDate"))
+        Dim dieLineRaw As String = batchData("DieLine")   ' contoh: D1|L1
+        Dim parts = dieLineRaw.Split("|"c)
+
+        Dim die As String = parts(0)    ' D1
+        Dim line As String = parts(1)   ' L1
+
         'Dim traceId = DbHelper.GenerateTraceID()
         ' Create batch object
         Dim batch As New Batch With {
@@ -64,10 +104,11 @@ Public Class BatchController
             .LastProc = GetLastProcess(),
             .Status = GetStatus(),
             .Shift = GetCurrentShift(),
-            .Line = batchData("Line"),
+            .Die = die,
+            .Line = line,
             .OperatorID = batchData("OperatorID"),
             .BaraCoreDate = BaraCoreDate,
-            .BaraCoreLot = GenerateBaraCoreLot(BaraCoreDate),
+            .BaraCoreLot = DbHelper.GenerateBaraCoreLot(BaraCoreDate),
             .CreatedDate = TimeProvider.Now,
             .UpdateDate = TimeProvider.Now
         }
@@ -75,9 +116,9 @@ Public Class BatchController
         Using conn As New SqlConnection(DbHelper.GetConnectionString("BatchDB"))
             conn.Open()
             Dim cmd As New SqlCommand(
-            "INSERT INTO pp_trace_route (trace_id, model_name, part_code, initial_qty, current_qty, last_proc_CODE, status, shift, line, 
+            "INSERT INTO pp_trace_route (trace_id, model_name, part_code, initial_qty, current_qty, last_proc_CODE, status, shift, die, line, 
             operator_id, bara_core_date, bara_core_lot, created_date, update_date) 
-             VALUES (@TraceID, @Model, @PartCode, @InitQty, @CurQty, @LastProc, @Status, @Shift, @Line, 
+             VALUES (@TraceID, @Model, @PartCode, @InitQty, @CurQty, @LastProc, @Status, @Shift, @Die, @Line, 
             @OperatorID, @BaraCoreDate, @BaraCoreLot, @CreatedDate, @UpdateDate)", conn)
 
             cmd.Parameters.AddWithValue("@TraceID", batch.TraceID)
@@ -88,6 +129,7 @@ Public Class BatchController
             cmd.Parameters.AddWithValue("@LastProc", batch.LastProc)
             cmd.Parameters.AddWithValue("@Status", batch.Status)
             cmd.Parameters.AddWithValue("@Shift", batch.Shift)
+            cmd.Parameters.AddWithValue("@Die", batch.Die)
             cmd.Parameters.AddWithValue("@Line", batch.Line)
             cmd.Parameters.AddWithValue("@OperatorID", batch.OperatorID)
             cmd.Parameters.AddWithValue("@BaraCoreDate", batch.BaraCoreDate.ToString("yyyy-MM-dd HH:mm:ss"))
@@ -117,6 +159,7 @@ Public Class BatchController
         ViewData("LastProc") = batch.LastProc
         ViewData("Status") = batch.Status
         ViewData("Shift") = batch.Shift
+        ViewData("Die") = batch.Die
         ViewData("Line") = batch.Line
         ViewData("OperatorID") = batch.OperatorID
         ViewData("BaraCoreDate") = batch.BaraCoreDate.ToString("yyyy-MM-dd HH:mm:ss")
@@ -204,7 +247,7 @@ Public Class BatchController
         Dim data = Newtonsoft.Json.JsonConvert.DeserializeObject(Of Dictionary(Of String, String))(jsonString)
         Dim controlNo As String = data("controlNo")
 
-        Using conn As New SqlConnection(DbHelper.GetConnectionString("EmpDB"))
+        Using conn As New SqlConnection(DbHelper.GetConnectionString("EmpDB2"))
             conn.Open()
             Dim cmd As New SqlCommand("
             SELECT EMPLOYEE_NO
@@ -246,25 +289,38 @@ Public Class BatchController
             conn.Open()
 
             ' 2. Check if control_no already used for today's batches
-            Dim todayPrefix As String = "PPA-" & TimeProvider.Now.ToString("yyyyMMdd") & "-"
+            Dim traceDate = TimeProvider.GetTraceDate()
+            Dim todayPrefix As String = "PPA-" & traceDate.ToString("yyyyMMdd") & "-"
+
             Dim checkCmd As New SqlCommand("
-                SELECT last_proc_code, trace_id
-                FROM pp_trace_route
-                WHERE control_no = @ControlNo 
-                  AND trace_id LIKE @TodayPrefix
+               SELECT TOP 1 mp.proc_code, tr.trace_id, tr.status, mp.proc_name
+                FROM pp_trace_route tr
+                LEFT JOIN pp_master_process mp on tr.last_proc_code = mp.proc_code
+                where tr.control_no = @ControlNo
+                  AND tr.status <> 'COMPLETED' AND tr.status <> 'BUFFER'
+                  ORDER BY trace_id DESC
             ", conn)
+            'AND trace_id LIKE @TodayPrefix no longer check by date
             checkCmd.Parameters.AddWithValue("@ControlNo", controlNo)
-            checkCmd.Parameters.AddWithValue("@TodayPrefix", todayPrefix & "%")
+            'checkCmd.Parameters.AddWithValue("@TodayPrefix", todayPrefix & "%")
 
             Using readerCheck = checkCmd.ExecuteReader()
                 If readerCheck.Read() Then
-                    Dim lastProc As String = readerCheck("last_proc_code").ToString()
+                    Dim lastProc As String
+                    If IsDBNull(readerCheck("proc_name")) OrElse readerCheck("proc_name").ToString() = "" Then
+                        lastProc = "Not started yet"
+                    Else
+                        lastProc = readerCheck("proc_name").ToString()
+                    End If
+
+                    'Dim lastProc As String = readerCheck("proc_name").ToString()
                     Dim existingTrace As String = readerCheck("trace_id").ToString()
                     Return Json(New With {
                          .success = False,
                          .message = String.Join(vbLf, New String() {
-                             "⚠ Control number already used for today's batch!",
-                             $"It is currently at process '{lastProc}' (Trace ID: {existingTrace}).",
+                             "⚠ Control number already used for another batch!",
+                             $"Current process : {lastProc}",
+                             $"Trace ID: {existingTrace}",
                              "Please scan a new control number to continue."
                          })
                      })
@@ -320,8 +376,8 @@ Public Class BatchController
         Dim schedule As String = Server.MapPath("~/Config/schedule.txt")
         Dim lines() As String = System.IO.File.ReadAllLines(schedule)
 
-        Dim shiftA As TimeSpan = TimeSpan.ParseExact(lines(0).Trim(), "hh\:mm", Nothing)
-        Dim shiftC As TimeSpan = TimeSpan.ParseExact(lines(1).Trim(), "hh\:mm", Nothing)
+        Dim shiftA As TimeSpan = TimeSpan.Parse(lines(0).Trim())
+        Dim shiftC As TimeSpan = TimeSpan.Parse(lines(1).Trim())
         Dim nowTime As TimeSpan = TimeProvider.Now.TimeOfDay
 
         ' Shift A: 07:45 - 19:44:59
@@ -341,34 +397,6 @@ Public Class BatchController
         Return "NEW"
     End Function
 
-    Private Function GenerateBaraCoreLot(BaraDate As DateTime) As String
-        Dim year As String = BaraDate.Year
-        Dim month As String = BaraDate.Month.ToString()
-        Dim day As Integer = BaraDate.Day
-
-        Dim baseYear As Integer = 2011
-        Dim alphabets As String = "ABCDEFGHJKLMNPQRSTUVWXYZ"
-
-        Dim calcYear As Integer = year - baseYear
-
-        If calcYear < 0 OrElse calcYear >= alphabets.Length Then
-            Throw New ArgumentOutOfRangeException("Year out of supported range.")
-        End If
-
-        Dim yearCode As Char = alphabets(calcYear)
-
-        If month.Equals("10") Then
-            month = "A"
-        ElseIf month.Equals("11") Then
-            month = "B"
-        ElseIf month.Equals("12") Then
-            month = "C"
-        Else
-            month = month
-        End If
-
-        Return yearCode & month & day.ToString("00")
-    End Function
 
     <HttpPost>
     Public Function GetFinalQty(partCode As String) As JsonResult

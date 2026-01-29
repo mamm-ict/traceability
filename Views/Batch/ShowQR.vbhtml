@@ -168,6 +168,15 @@ window.addEventListener("DOMContentLoaded", () => {
         const controlNo = this.value.trim();
         if(!controlNo) return;
 
+        // Hanya digits sahaja
+        if (!/^\d+$/.test(controlNo)) {
+            status.style.color = 'red';
+            status.textContent = "Control Number must contain digits only!";
+            this.value = "";
+            this.focus();
+            return;
+        }
+
         fetch('@Url.Action("AddControlNo","Batch")',{
             method:'POST',
             headers:{'Content-Type':'application/json'},

@@ -41,7 +41,7 @@ Public Class PdfHelper
 
                 ' Fetch trace_route
                 Dim cmdRoute As New SqlCommand("
-                    SELECT tr.part_code, tr.current_qty, tr.created_date, tr.update_date, tr.shift, tr.line, mm.part_desc
+                    SELECT tr.part_code, tr.current_qty, tr.created_date, tr.update_date, tr.shift, tr.line, tr.die, mm.part_desc
                     FROM pp_trace_route tr
                     JOIN pp_master_material mm ON tr.part_code = mm.upper_item
                     WHERE trace_id = @TraceID
@@ -54,11 +54,11 @@ Public Class PdfHelper
                         routeRow = New Dictionary(Of String, Object) From {
                             {"part_code", reader("part_desc")},
                             {"current_qty", reader("current_qty")},
-                            {"created_date", reader("created_date")},
                             {"updated_date", reader("update_date")},
                             {"shift", reader("shift")},
+                            {"die", reader("die")},
                             {"line", reader("line")}
-                        }
+                        } '{"created_date", reader("created_date")},
                     End If
                 End Using
 
@@ -78,6 +78,35 @@ Public Class PdfHelper
                 cmdBuffer.Parameters.AddWithValue("@TraceID", traceId)
                 Using reader = cmdBuffer.ExecuteReader()
                     If reader.Read() Then empId = reader("operator_id").ToString()
+                End Using
+
+                ' Lot No Date
+                Dim dateLot As String = ""
+                Dim cmdDate As New SqlCommand("
+                    SELECT scan_time
+                    FROM pp_trace_processes tp
+                    JOIN pp_master_process mp ON tp.process_id = mp.id
+                    WHERE trace_id = @TraceID AND proc_code like 'PWT%'
+                ", conn)
+                cmdDate.Parameters.AddWithValue("@TraceID", traceId)
+                Using reader = cmdDate.ExecuteReader()
+                    If reader.Read() Then dateLot = reader("scan_time").ToString()
+                End Using
+
+                ' Process Code
+                Dim procCode As String = ""
+                Dim cmdProc As New SqlCommand("
+                    SELECT short_code
+                    FROM pp_trace_processes  tp
+                    join pp_master_process mp on tp.process_id = mp.id
+                    WHERE trace_id = @TraceID AND (proc_code like 'PWT%' OR proc_code LIKE 'OVN%')
+                ", conn)
+                cmdProc.Parameters.AddWithValue("@TraceID", traceId)
+                Using reader = cmdProc.ExecuteReader()
+                    While reader.Read()
+                        procCode &= reader("short_code").ToString().Trim()
+                    End While
+                    Debug.WriteLine(procCode & "this is proccode")
                 End Using
 
                 ' --- Main Table ---
@@ -117,15 +146,30 @@ Public Class PdfHelper
                 })
 
                 ' 3️⃣ Quantity / Lot / Line
-                Dim lotNo = Convert.ToDateTime(routeRow("created_date")).ToString("yyMMdd") & " - " & routeRow("shift").ToString()
+                'Dim lotNo = Convert.ToDateTime(dateLot).ToString("yyMMdd") & " - " & routeRow("shift").ToString()
+                Dim lotNo = DbHelper.GenerateBaraCoreLot(dateLot) & procCode
+
+                Dim cmdLotNo As New SqlCommand("
+                    UPDATE pp_trace_route
+                    SET lot_no = @LotNo
+                    WHERE trace_id = @TraceID
+                ", conn)
+
+                cmdLotNo.Parameters.AddWithValue("@LotNo", lotNo)
+                cmdLotNo.Parameters.AddWithValue("@TraceID", traceId)
+
+                cmdLotNo.ExecuteNonQuery()
 
                 table.AddCell(New PdfPCell(New Phrase("QUANTITY", boldFont)) With {.HorizontalAlignment = Element.ALIGN_CENTER, .BackgroundColor = headerStyle, .Padding = 5})
                 table.AddCell(New PdfPCell(New Phrase("LOT NO", boldFont)) With {.HorizontalAlignment = Element.ALIGN_CENTER, .BackgroundColor = headerStyle, .Padding = 5})
-                table.AddCell(New PdfPCell(New Phrase("LINE", boldFont)) With {.HorizontalAlignment = Element.ALIGN_CENTER, .BackgroundColor = headerStyle, .Padding = 5})
+                table.AddCell(New PdfPCell(New Phrase("DIE CORE", boldFont)) With {.HorizontalAlignment = Element.ALIGN_CENTER, .BackgroundColor = headerStyle, .Padding = 5})
 
                 table.AddCell(New PdfPCell(New Phrase(routeRow("current_qty").ToString(), normalFont)) With {.HorizontalAlignment = Element.ALIGN_CENTER, .Padding = 5})
                 table.AddCell(New PdfPCell(New Phrase(lotNo, normalFont)) With {.HorizontalAlignment = Element.ALIGN_CENTER, .Padding = 5})
-                table.AddCell(New PdfPCell(New Phrase(routeRow("line").ToString(), normalFont)) With {.HorizontalAlignment = Element.ALIGN_CENTER, .Padding = 5})
+                ' gabung value Line & Die dalam satu string
+                Dim lineDieText As String = $"{routeRow("die")} {routeRow("line")}"
+                ' letak dalam satu cell je
+                table.AddCell(New PdfPCell(New Phrase(lineDieText, normalFont)) With {.HorizontalAlignment = Element.ALIGN_CENTER, .Padding = 5})
 
                 ' --- BOTTOM SECTION: 3 ROWS, 2 COLUMNS HALF-HALF ---
                 Dim mfgDate = Convert.ToDateTime(routeRow("updated_date")).ToString("yyyy-MM-dd")

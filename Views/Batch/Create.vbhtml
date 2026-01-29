@@ -1,5 +1,5 @@
 ﻿@Code
-    ViewData("Title") = "Create Batch"
+    ViewData("Title") = "Create Route Card"
     Dim batch As Batch = Nothing
     If ViewData("Batch") IsNot Nothing Then
         batch = CType(ViewData("Batch"), Batch)
@@ -41,13 +41,21 @@ End Code
             </div>
 
             <div>
-                <label class="mes-label">Line No</label>
-                <select name="Line" id="Line" class="mes-input vk-input" required>
+                <label class="mes-label">Die Core</label>
+                @*<select name="Line" id="Line" class="mes-input vk-input" required>
                     <option disabled selected hidden value="">Select</option>
 
                     <option value="1" @(If(ViewData("Line") = "1", "selected", ""))>Line 1</option>
                     <option value="2" @(If(ViewData("Line") = "2", "selected", ""))>Line 2</option>
+                </select>*@
+                <select name="DieLine" id="DieLine" class="mes-input vk-input" required>
+                    <option disabled selected hidden value="">Select</option>
+
+                    @For Each item In CType(ViewData("DieLines"), List(Of SelectListItem))
+                        @<option value="@item.Value">@item.Text</option>
+                    Next
                 </select>
+
             </div>
 
 
@@ -151,7 +159,7 @@ End Code
     function checkForm() {
         let hasError = false;
 
-        ["Model", "PartCode", "BaraCoreDate", "Line", "OperatorID", "InitQty"]
+        ["Model", "PartCode", "BaraCoreDate", "DieLine", "OperatorID", "InitQty"]
             .forEach(name => {
 
                 const el =
@@ -184,7 +192,7 @@ End Code
         // TEXT / NUMBER / DATE inputs
         document.querySelectorAll(
             "input[name='Model'], " +
-            "input[name='Line'], " +
+            "input[name='DieLine'], " +
             "input[name='OperatorID'], " +
             "input[name='InitQty'], " +
             "input[name='BaraCoreDate']"
@@ -202,7 +210,7 @@ End Code
             partSelect.addEventListener("blur", checkForm);
         }
 
-        const lineSelect = document.querySelector("select[name='Line']");
+        const lineSelect = document.querySelector("select[name='DieLine']");
         if (lineSelect) {
             lineSelect.addEventListener("change", checkForm);
             lineSelect.addEventListener("focus", () => lineSelect.dataset.touched = "true");

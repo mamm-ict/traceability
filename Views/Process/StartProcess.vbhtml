@@ -69,6 +69,35 @@ End Code
         width: 420px;
         max-width: 100%;
     }
+    .input-with-icon {
+        position: relative;
+        width: 420px;
+        max-width: 100%;
+    }
+
+        .input-with-icon input {
+            width: 100%;
+            padding-right: 45px; /* ruang untuk button */
+            box-sizing: border-box;
+        }
+
+        .input-with-icon button {
+            position: absolute;
+            right: 0;
+            top: 0;
+            height: 100%;
+            width: 40px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            border-radius: 0 10px 10px 0;
+        }
+
+            .input-with-icon button:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
 
 </style>
 
@@ -82,7 +111,13 @@ End Code
 
         <form method="post" action="@Url.Action("StartProcess")">
             <label>Scan Route Card:</label>
-            <input type="text" name="traceId" id="traceID" autofocus autocomplete="off" required />
+            @*<input type="text" name="traceId" id="traceID" autofocus autocomplete="off" required />*@
+            <div class="input-with-icon">
+                <input type="text" name="traceId" id="traceID" autofocus autocomplete="off" required />
+                <button type="button" id="btnCheckStatus" disabled>🔍</button>
+            </div>
+
+
             <label class="mes-label">Operator No</label>
             <input type="text" name="operatorId" id="operatorID" required autocomplete="off" />
             <label class="mes-label">Scan Process QR</label>
@@ -176,8 +211,15 @@ End Code
     input.addEventListener("keydown", function (e) {
         if (e.key === "Enter") {
             e.preventDefault();
-
+          
             let val = this.value.trim();
+
+            // CASE 1: user type proc_code (OVN-04)
+            if (/^[A-Z]{3}-\d{2}$/.test(val)) {
+                form.submit();
+                return;
+            }
+
             if (!/^\d{10}$/.test(val)) {
                 alert("Invalid Process Card");
                 this.value = "";
@@ -205,4 +247,20 @@ End Code
                 });
         }
     });
+
+    const btnStatus = document.getElementById("btnCheckStatus");
+    const traceInput = document.getElementById("traceID");
+
+    traceInput.addEventListener("input", function () {
+        btnStatus.disabled = this.value.trim().length === 0;
+    });
+
+    btnStatus.addEventListener("click", function () {
+        const traceId = traceInput.value.trim();
+        if (!traceId) return;
+
+        window.location.href =
+            `/Process/ProcessBatch?traceId=${encodeURIComponent(traceId)}`;
+    });
+
 </script>

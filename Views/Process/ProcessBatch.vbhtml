@@ -1,5 +1,5 @@
 ﻿@Code
-    ViewData("Title") = "ProcessBatch"
+    ViewData("Title") = "Registered Process"
 
     Dim batch As Batch = CType(ViewData("Batch"), Batch)
     Dim processes As List(Of ProcessMaster) = CType(ViewData("Processes"), List(Of ProcessMaster))
@@ -42,9 +42,9 @@ End Code
 <div class="mes-container">
 
     <h2 class="mes-title">Process Registered</h2>
-        <!-- Parent wrapper untuk center -->
-        <div style="display:flex; justify-content:center; align-items:center; height:auto;">
-            <div class="mes-card shadow" style="
+    <!-- Parent wrapper untuk center -->
+    <div style="display:flex; justify-content:center; align-items:center; height:auto;">
+        <div class="mes-card shadow" style="
         max-width:600px;
         border-radius:14px;
         background:#fff;
@@ -53,31 +53,31 @@ End Code
         border-left:6px solid #1a73e8;
         box-shadow:0 6px 18px rgba(0,0,0,0.12);
     ">
-                <!-- --- Card content --- -->
-                <!-- Top Bar: TraceID + Date + Shift -->
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                    <h2 style="margin:0; font-size:1.6rem; color:#1a73e8; font-weight:700;">📦 @batch.TraceID</h2>
-                    <div style="text-align:right; font-size:0.95rem; color:#555; margin-left:100px">
-                        <div><strong>Date:</strong> @batch.CreatedDate.ToString("dd/MM/yyyy")</div>
-                        <div><strong>Shift:</strong> @batch.Shift</div>
-                    </div>
+            <!-- --- Card content --- -->
+            <!-- Top Bar: TraceID + Date + Shift -->
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h2 style="margin:0; font-size:1.6rem; color:#1a73e8; font-weight:700;">📦 @batch.TraceID</h2>
+                <div style="text-align:right; font-size:0.95rem; color:#555; margin-left:100px">
+                    <div><strong>Date:</strong> @batch.CreatedDate.ToString("dd/MM/yyyy")</div>
+                    <div><strong>Shift:</strong> @batch.Shift</div>
                 </div>
+            </div>
 
-                <!-- Details Grid -->
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:22px; color:#555;">
-                    <div><strong>Model:</strong> @batch.Model</div>
-                    <div><strong>Line:</strong> @batch.Line</div>
-                    <div><strong>Operator:</strong> @batch.OperatorID</div>
-                    <div><strong>Bara Core Lot:</strong> @batch.BaraCoreLot</div>
-                </div>
+            <!-- Details Grid -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:22px; color:#555;">
+                <div><strong>Model:</strong> @batch.Model</div>
+                <div><strong>Die Core:</strong> @ViewData("DieCore")</div>
+                <div><strong>Operator:</strong> @batch.OperatorID</div>
+                <div><strong>Bara Core Lot:</strong> @batch.BaraCoreLot</div>
+            </div>
 
-                <!-- Current Process & Progress -->
-                <div>
-                    <div style="font-weight:600; color:#004d40; margin-bottom:8px; font-size:1rem;">🔄 Current Process</div>
-                    <div style="display:flex; align-items:center; gap:12px;">
-                        <!-- Progress Bar -->
-                        <div style="flex:1; position:relative; height:24px; background:#e0e0e0; border-radius:12px; overflow:hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);">
-                            <div id="progress-fill" style="
+            <!-- Current Process & Progress -->
+            <div>
+                <div style="font-weight:600; color:#004d40; margin-bottom:8px; font-size:1rem;">🔄 Current Process</div>
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <!-- Progress Bar -->
+                    <div style="flex:1; position:relative; height:24px; background:#e0e0e0; border-radius:12px; overflow:hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);">
+                        <div id="progress-fill" style="
                         width:@progressPercent%;
                         height:100%;
                         border-radius:12px;
@@ -89,48 +89,79 @@ End Code
                         font-size:0.85rem;
                         transition: width 0.6s ease, background 0.6s ease;
                     ">
-                                @(If(progressPercent > 0, progressPercent & "%", ""))
-                            </div>
+                            @(If(progressPercent > 0, progressPercent & "%", ""))
                         </div>
-
-                        <!-- Current Process Name -->
-                        <div style="min-width:140px; font-weight:600; color:#004d40;">@currentProcessName</div>
                     </div>
 
-                    <!-- Timer -->
-                    <div style="margin-top:10px; font-size:0.9rem; color:#888;">
-                        Auto-redirect in <span id="timer">20</span> seconds
-                    </div>
+                    <!-- Current Process Name -->
+                    <div style="min-width:140px; font-weight:600; color:#004d40;">@currentProcessName</div>
                 </div>
+
+                <!-- Timer -->
+                <div style="margin-top:10px; font-size:0.9rem; color:#888;">
+                    Auto-redirect in <span id="timer">20</span> seconds
+                </div>
+            </div>
+
+            <!-- Materials Used Section -->
+            <div style="margin-top:24px;">
+                <div style="font-weight:600; color:#6a1b9a; margin-bottom:12px; font-size:1rem;">🧩 Materials Used</div>
+
+                @If CType(ViewData("MaterialsUsed"), List(Of MaterialLog)).Any() Then
+                    @<div style=" display: grid; grid-template-columns: repeat(4, auto); gap: 12px; padding: 16px; background: #f5f5f5; border-radius: 10px; align-items: center; ">
+
+    <!-- Header Row -->
+    <div style="font-weight:700; background:#e0e0e0; padding:6px;">Process</div>
+    <div style="font-weight:700; background:#e0e0e0; padding:6px;">Material</div>
+    <div style="font-weight:700; background:#e0e0e0; padding:6px;">Total Qty</div>
+    <div style="font-weight:700; background:#e0e0e0; padding:6px;">Vendor Lot</div>
+
+
+    @For Each mat In CType(ViewData("MaterialsUsed"), List(Of MaterialLog))
+        @<div>@mat.ProcCode</div>
+        @<div>@mat.LowerMaterial</div>
+        @<div>@mat.UsageQty @mat.UOM</div>
+        @<div>@mat.VendorLot</div>
+
+        @<div style="grid-column:1 / -1; height:1px; background:#ddd;"></div>
+    Next
+</div>
+                                    Else
+                    @<div style="padding:12px; color:#888;"> No materials registered yet.</div>
+                End If
+            </div>
+
+
         </div>
     </div>
-   
+
 
 </div>
-   
 
-    <style>
-        .mes-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-            transition: all 0.25s;
-        }
-        .mes-card {
-            max-width: 700px;
-            margin: 30px auto;
-            padding: 25px;
-/*            background: #fff;*/
-/*            border-radius: 15px;*/
-/*            box-shadow: 0 10px 25px rgba(0,0,0,0.08);*/
-        }
-    </style>
 
-    <script>
-    let countdown = 20;
+<style>
+    .mes-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+        transition: all 0.25s;
+    }
+
+    .mes-card {
+        max-width: 700px;
+        margin: 30px auto;
+        padding: 25px;
+        /*            background: #fff;*/
+        /*            border-radius: 15px;*/
+        /*            box-shadow: 0 10px 25px rgba(0,0,0,0.08);*/
+    }
+</style>
+
+<script>
+    let countdown = 200;
     const timerDisplay = document.getElementById("timer");
 
     function startTimer() {
-        countdown = 20;
+        countdown = 200;
         timerDisplay.textContent = countdown;
 
         const interval = setInterval(() => {
@@ -177,4 +208,4 @@ End Code
     progressFill.style.background = bgColor;
     progressFill.style.width = displayWidth + "%";
 
-    </script>
+</script>

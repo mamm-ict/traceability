@@ -37,7 +37,12 @@ Public Class ProcessController
             Return View("~/Views/Process/StartProcess.vbhtml")
         End If
 
-        Dim scannedProcess = processes.FirstOrDefault(Function(p) p.Code = processQr.ToUpper())
+        Dim scannedProcess = processes.FirstOrDefault(Function(p) p.Code = processQr.Trim().ToUpper())
+        ' StartProcess
+        ' Tambah sebelum redirect atau render view
+        ViewData("ScannedProcessId") = If(ViewData("ScannedProcessId"), scannedProcess.ID)
+        ViewData("ScannedOperatorId") = If(ViewData("ScannedOperatorId"), operatorId)
+
         If scannedProcess Is Nothing Then
             ViewData("StatusMessage") = "Invalid process QR."
             Return View("~/Views/Process/StartProcess.vbhtml")
@@ -46,7 +51,15 @@ Public Class ProcessController
         Dim pendingBufferLog = logs.FirstOrDefault(Function(l) l.Status = "Pending Completion")
         If pendingBufferLog IsNot Nothing Then
             ' Redirect to ProcessBuffer page for pending process
-            Return RedirectToAction("ProcessBuffer", New With {.traceId = traceId, .procId = pendingBufferLog.ProcessID})
+            ViewData("ScannedProcessId") = scannedProcess.ID
+            ViewData("ScannedOperatorId") = operatorId
+
+            Return RedirectToAction("ProcessBuffer", "Process", New With {
+        .traceId = traceId,
+        .procId = scannedProcess.ID,
+        .scannedProcessId = scannedProcess.ID,
+        .scannedOperatorId = operatorId
+    })
         End If
 
         ' 3️⃣ Check process sequence & buffer/material (sama macam sebelum)
@@ -122,14 +135,27 @@ Public Class ProcessController
 
         ' 3️⃣ Kalau ada pending buffer, redirect ke ProcessBuffer
         If pendingBuffers.Any() Then
-            Return RedirectToAction("ProcessBuffer", New With {.traceId = traceId, .procId = pendingBuffers.First().ProcessID})
+            ViewData("ScannedProcessId") = scannedProcess.ID
+            ViewData("ScannedOperatorId") = operatorId
+
+            Return RedirectToAction("ProcessBuffer", New With {
+        .traceId = traceId,
+        .procId = pendingBuffers.First().ProcessID,
+        .scannedProcessId = scannedProcess.ID,
+        .scannedOperatorId = operatorId
+    })
         End If
+
+
+        Dim trueTraceId = traceId
+        Dim trueProcessId = scannedProcess.ID
+        Dim trueOperatorId = operatorId
 
         ' 5️⃣ Log current process FIRST
         DbHelper.LogBatchProcess(
-            traceId:=traceId,
-            processId:=scannedProcess.ID,
-            operatorId:=operatorId,
+            traceId:=trueTraceId,
+            processId:=trueProcessId,
+            operatorId:=trueOperatorId,
             qtyIn:=batch.CurQty,
             qtyOut:=0,
             qtyReject:=0,
@@ -146,7 +172,15 @@ Public Class ProcessController
                 New With {.traceId = traceId, .procId = scannedProcess.ID}
             )
         ElseIf scannedProcess.BufferFlag = 1 Then
-            Return RedirectToAction("ProcessBuffer", "Process", New With {.traceId = traceId, .procId = scannedProcess.ID})
+            ViewData("ScannedProcessId") = scannedProcess.ID
+            ViewData("ScannedOperatorId") = operatorId
+
+                Return RedirectToAction("ProcessBuffer", "Process", New With {
+        .traceId = traceId,
+        .procId = scannedProcess.ID,
+        .scannedProcessId = scannedProcess.ID,
+        .scannedOperatorId = operatorId
+    })
 
         Else
             Return RedirectToAction("ProcessBatch", New With {.traceId = traceId})
@@ -183,7 +217,10 @@ Public Class ProcessController
         End Try
     End Function
 
-    Public Function ProcessBuffer(traceId As String, procId As Integer) As ActionResult
+    Public Function ProcessBuffer(traceId As String, procId As Integer, Optional scannedProcessId As Integer = 0,
+    Optional scannedOperatorId As String = "") As ActionResult
+        ViewData("ScannedProcessId") = scannedProcessId
+        ViewData("ScannedOperatorId") = scannedOperatorId
         If String.IsNullOrEmpty(traceId) Then
             Return RedirectToAction("StartProcess")
         End If
@@ -225,7 +262,7 @@ Public Class ProcessController
         Dim data = Newtonsoft.Json.JsonConvert.DeserializeObject(Of Dictionary(Of String, String))(jsonString)
         Dim controlNo As String = data("controlNo")
 
-        Using conn As New SqlConnection(DbHelper.GetConnectionString("EmpDB"))
+        Using conn As New SqlConnection(DbHelper.GetConnectionString("EmpDB2"))
             conn.Open()
             Dim cmd As New SqlCommand("
                 SELECT EMPLOYEE_NO
@@ -284,7 +321,8 @@ Public Class ProcessController
                 SELECT trace_id
                 FROM pp_trace_route
                 WHERE CONTROL_NO = @ControlNo
-                AND CAST(created_date AS DATE) = CAST(GETDATE() AS DATE);
+                AND (status LIKE 'NEW' OR status LIKE 'ONGOING')
+                ORDER BY trace_id DESC;
             ", conn)
             cmd.Parameters.AddWithValue("@ControlNo", controlNo)
             Dim traceId = cmd.ExecuteScalar()
@@ -345,17 +383,29 @@ Public Class ProcessController
         End If
 
         Dim batch As Batch = LoadBatch(TraceID)
-
         Dim processes As List(Of ProcessMaster) = DbHelper.GetAllProcesses()
+        Dim logs As List(Of ProcessLog) = DbHelper.GetProcessLogsByTraceID(TraceID).OrderBy(Function(l) l.ScanTime).ToList()
 
-        ' Ambil logs berdasarkan TraceID penuh
-        Dim logs As List(Of ProcessLog) = DbHelper.GetProcessLogsByTraceID(TraceID)
+        ' --- Determine current process (last log) ---
+        Dim lastLog = logs.OrderByDescending(Function(l) l.ScanTime).FirstOrDefault()
+        Dim currentProcID As Integer = If(lastLog IsNot Nothing, lastLog.ProcessID, 0)
+        Dim currentPartCode As String = If(batch IsNot Nothing, batch.PartCode, "")
+
+        ' --- Load materials used for this TraceID + Process + Part ---
+        Dim materialsUsed As List(Of MaterialLog) = DbHelper.GetTraceMaterialsByTrace(TraceID)
+
+        Dim diecore As String = (If(batch.Die, "").Trim() & " " & If(batch.Line, "").Trim()).Trim()
+
 
         ViewData("Batch") = batch
         ViewData("Processes") = processes
-        ViewData("Logs") = logs.OrderBy(Function(l) l.ScanTime).ToList()
+        ViewData("Logs") = logs
+        ViewData("MaterialsUsed") = materialsUsed
+        ViewData("DieCore") = diecore
+
         Return View()
     End Function
+
 
     <HttpPost>
     Public Function ScanMaterial(model As MaterialLog) As ActionResult
@@ -439,7 +489,8 @@ Public Class ProcessController
     End Function
 
     <HttpPost>
-    Public Function CompleteBuffer(logId As Integer, qtyReject As Integer, qtyOut As Integer) As ActionResult
+    Public Function CompleteBuffer(logId As Integer, qtyReject As Integer, qtyOut As Integer, scannedProcessId As Integer,
+    scannedOperatorId As String) As ActionResult
 
         Dim log = DbHelper.GetProcessLogById(logId)
         If log Is Nothing Then
@@ -478,18 +529,18 @@ Public Class ProcessController
                     bufferQty = Convert.ToInt32(cmd.ExecuteScalar())
                 End Using
 
-                If bufferQty > 0 Then
-                    Debug.WriteLine(bufferQty & "up")
+                'If bufferQty > 0 Then
+                '    Debug.WriteLine(bufferQty & "up")
 
-                    Dim activeBufferTrace = DbHelper.GetActiveBufferTrace(DateTime.Today)
-                    If activeBufferTrace Is Nothing OrElse activeBufferTrace.TotalQty + bufferQty > 1392 Then
-                        activeBufferTrace = DbHelper.CreateNewBufferTrace(DateTime.Today, bufferQty, log.OperatorID, log.TraceID)
-                    End If
+                '    Dim activeBufferTrace = DbHelper.GetActiveBufferTrace(DateTime.Today)
+                '    If activeBufferTrace Is Nothing OrElse activeBufferTrace.TotalQty + bufferQty > 1392 Then
+                '        activeBufferTrace = DbHelper.CreateNewBufferTrace(DateTime.Today, bufferQty, log.OperatorID, log.TraceID)
+                '    End If
 
-                    DbHelper.InsertBufferMap(activeBufferTrace.TraceID, batch.TraceID, bufferQty)
-                    DbHelper.UpdateBufferTraceQty(activeBufferTrace.TraceID, log.OperatorID)
-                    Debug.WriteLine(bufferQty & "down")
-                End If
+                '    DbHelper.InsertBufferMap(activeBufferTrace.TraceID, batch.TraceID, bufferQty)
+                '    DbHelper.UpdateBufferTraceQty(activeBufferTrace.TraceID, log.OperatorID)
+                '    Debug.WriteLine(bufferQty & "down")
+                'End If
 
                 'Dim pdfBytes = PdfHelper.GenerateTracePdf(batch.TraceID)
                 'Response.Clear()
@@ -522,7 +573,17 @@ Public Class ProcessController
                     qtyReject:=qtyReject
                 )
 
-                DbHelper.RegisterNextProcess(batch, process, log.OperatorID)
+                ''DbHelper.RegisterNextProcess(batch, process, log.OperatorID)
+                'Dim scannedProcessId = Convert.ToInt32(Request("scannedProcessId"))
+                'Dim scannedOperatorId = Request("scannedOperatorId").ToString()
+
+                'If scannedProcessId > 0 Then
+                    Dim scannedProcess = DbHelper.GetProcessById(scannedProcessId)
+                '    If scannedProcess IsNot Nothing Then
+                DbHelper.RegisterNextProcess(batch, scannedProcess, scannedOperatorId)
+                'End If
+                'End If
+
 
                 Return Json(New With {
                     .success = True,
@@ -546,8 +607,8 @@ Public Class ProcessController
             conn.Open()
             Dim cmd As New SqlCommand("
             SELECT printed_date
-            FROM pp_trace_buffer_map
-            WHERE ori_trace_id = @TraceID
+            FROM pp_trace_route
+            WHERE trace_id = @TraceID
         ", conn)
             cmd.Parameters.AddWithValue("@TraceID", traceId)
             printedDate = cmd.ExecuteScalar()
@@ -581,14 +642,17 @@ Public Class ProcessController
             pdfBytes = PdfHelper.GenerateTracePdf(traceId)
             System.IO.File.WriteAllBytes(pdfPath, pdfBytes)
 
+            Dim today As Date = TimeProvider.Now
+
             ' Update printed_date ONLY when new PDF is created
             Using conn As New SqlConnection(DbHelper.GetConnectionString("BatchDB"))
                 conn.Open()
                 Dim cmd As New SqlCommand("
-                UPDATE pp_trace_buffer_map
-                SET printed_date = GETDATE()
-                WHERE ori_trace_id = @TraceID
+                UPDATE pp_trace_route
+                SET printed_date = @Today
+                WHERE trace_id = @TraceID
             ", conn)
+                cmd.Parameters.AddWithValue("@Today", today)
                 cmd.Parameters.AddWithValue("@TraceID", traceId)
                 cmd.ExecuteNonQuery()
             End Using
@@ -617,6 +681,7 @@ Public Class ProcessController
                 If reader.Read() Then
                     batch = New Batch With {
                         .TraceID = reader("trace_id").ToString(),
+                        .Die = reader("die").ToString(),
                         .Line = reader("line").ToString(),
                         .OperatorID = reader("operator_id").ToString(),
                         .CreatedDate = Convert.ToDateTime(reader("created_date")),

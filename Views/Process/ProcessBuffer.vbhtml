@@ -1,5 +1,5 @@
 ﻿@Code
-    ViewData("Title") = "ProcessBuffer"
+    ViewData("Title") = "NG Disposal"
     Dim batch As Batch = CType(ViewData("Batch"), Batch)
     Dim processes As List(Of ProcessMaster) = CType(ViewData("Processes"), List(Of ProcessMaster))
     Dim logs As List(Of ProcessLog) = CType(ViewData("Logs"), List(Of ProcessLog))
@@ -17,10 +17,22 @@
         If proc IsNot Nothing Then activeProcessName = proc.Name
     End If
 End Code
+@Code
+    Dim scannedProcessIdValue As Integer = 0
+    Dim scannedOperatorIdValue As String = ""
+
+    If ViewData("ScannedProcessId") IsNot Nothing Then
+        scannedProcessIdValue = Convert.ToInt32(ViewData("ScannedProcessId"))
+    End If
+
+    If ViewData("ScannedOperatorId") IsNot Nothing Then
+        scannedOperatorIdValue = ViewData("ScannedOperatorId").ToString()
+    End If
+End Code
 
 <div class="mes-container">
 
-    <h2 class="mes-title">Process Buffer</h2>
+    <h2 class="mes-title">NG Disposal</h2>
 
     @If pendingLog IsNot Nothing AndAlso currentProcessId.HasValue Then
         @<div class="mes-process-card">
@@ -32,6 +44,10 @@ End Code
             <h3 class="mes-card-subtitle">@activeProcessName</h3>
 
             <!-- Hidden fields -->
+            <input type="hidden" id="scannedProcessId" value="@scannedProcessIdValue" />
+            <input type="hidden" id="scannedOperatorId" value="@scannedOperatorIdValue" />
+
+
             <input type="hidden" id="traceId" value="@batch.TraceID" />
             <input type="hidden" id="logId" value="@pendingLog.ID" />
 
@@ -106,6 +122,10 @@ End Code
 </style>
 
 <script>
+    window.onload = function () {
+        alert("ProcessID: " + scannedProcessIdValue + ", OperatorID: " + scannedOperatorIdValue + "huhu" + pendingLog.ID);
+    };
+
     let autoRedirectTimer;
 
     let countdown = 200;
@@ -134,6 +154,8 @@ End Code
         const traceId = document.getElementById("traceId").value;
         const qtyOut = parseInt(document.getElementById("qtyOut").value, 10) || 0;
         const qtyReject = parseInt(document.getElementById("qtyReject").value, 10) || 0;
+        const scannedProcessId = document.getElementById("scannedProcessId").value;
+        const scannedOperatorId = document.getElementById("scannedOperatorId").value;
 
         if (qtyOut < 0 || qtyReject < 0) {
             alert("Qty cannot be negative");
@@ -142,7 +164,7 @@ End Code
 
         btn.disabled = true; // prevent multiple clicks
 
-        const payload = { logId, qtyOut, qtyReject };
+        const payload = { logId, qtyOut, qtyReject, scannedProcessId, scannedOperatorId };
 
         fetch("@Url.Action("CompleteBuffer")", {
             method: "POST",

@@ -82,6 +82,13 @@ End Code
             <input type="hidden" id="procId" value="@activeProcessId.Value" />
             <input type="hidden" id="partCode" value="@batch.PartCode" />
 
+            <div style="margin-bottom:12px;">
+                <label style="display:flex; align-items:center; gap:8px;">
+                    <input type="checkbox" id="enableManualMaterial" />
+                    <strong>Manual Material Entry</strong>
+                </label>
+            </div>
+
             <!-- SCAN INPUT -->
             <input type="text"
                    id="materialQr"
@@ -89,8 +96,29 @@ End Code
                    autocomplete="off" autofocus
                    placeholder="Scan material QR here" />
 
+
+
+
             <!-- LIST TABLE -->
             <div style="overflow-x:auto; margin-top:20px;">
+                <div id="manualMaterialForm" style="display:none; margin-bottom:20px;">
+
+                    <input class="mes-input" id="mLowerMaterial" placeholder="Lower Material" />
+                    <input class="mes-input" id="mBatchLot" placeholder="Batch Lot" />
+
+                    <div style="display:flex; gap:10px;">
+                        <input class="mes-input" id="mQty" placeholder="Qty" type="number" />
+                        <input class="mes-input" id="mUom" placeholder="UOM" />
+                    </div>
+
+                    <input class="mes-input" id="mVendor" placeholder="Vendor Code" />
+                    <input class="mes-input" id="mVendorLot" placeholder="Vendor Lot" />
+
+                    <button type="button" class="mes-btn-primary" id="addManualMaterial">
+                        ➕ Add Manual Material
+                    </button>
+
+                </div>
                 <table class="mes-table">
                     <thead>
                         <tr>
@@ -110,10 +138,18 @@ End Code
                     <tbody id="materialList">
                         @For Each m In CType(ViewData("Materials"), List(Of MaterialLog))
                             Dim rowClass = If(m.IsDuplicate, "duplicate-material", "")
-                            @<tr class="@rowClass">
-                                <td hidden>@m.TraceID</td>
-                                <td hidden>@m.ProcID</td>
-                                <td hidden>@m.PartCode</td>
+                            @<tr class="@rowClass"
+                                 data-traceid="@m.TraceID"
+                                 data-procid="@m.ProcID"
+                                 data-partcode="@m.PartCode"
+                                 data-lowermaterial="@m.LowerMaterial"
+                                 data-batchlot="@m.BatchLot"
+                                 data-usageqty="@m.UsageQty"
+                                 data-uom="@m.UOM"
+                                 data-vendorcode="@m.VendorCode"
+                                 data-vendorlot="@m.VendorLot"
+                                 data-isduplicate="@m.IsDuplicate">
+
                                 <td>@m.LowerMaterial</td>
                                 <td>@m.BatchLot</td>
                                 <td>@m.UsageQty</td>
@@ -131,11 +167,29 @@ End Code
                     </tbody>
                 </table>
             </div>
+            <button class="mes-btn-primary" id="submitMaterial">Submit</button>
+
         </div>
     End If
 </div>
 
 <style>
+    .mes-btn-primary {
+        width: 100%;
+        padding: 12px;
+        margin-top: 20px;
+        background-color: #2b4c7e;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 16px;
+    }
+
+        .mes-btn-primary:active {
+            transform: scale(0.97);
+        }
+
     .duplicate-material {
         background-color: #fff3cd; /* kuning light */
         color: #856404; /* teks warna kontras */
@@ -207,92 +261,219 @@ End Code
 </style>
 
 <script>
-    let autoRedirectTimer;
-    let countdown = 20; // 20 seconds
-    const timerDisplay = document.getElementById("timer");
+    const manualToggle = document.getElementById("enableManualMaterial");
+    const manualForm = document.getElementById("manualMaterialForm");
+    const scanInput = document.getElementById("materialQr");
 
-    function startAutoRedirect() {
-        countdown = 20;
-        timerDisplay.textContent = countdown;
-        if (autoRedirectTimer) clearTimeout(autoRedirectTimer);
+    manualToggle.addEventListener("change", function () {
+        if (this.checked) {
+            manualForm.style.display = "block";
+            scanInput.value = "";
+            scanInput.blur();              // ⬅️ PENTING
+            scanInput.disabled = true;
+        } else {
+            manualForm.style.display = "none";
+            scanInput.disabled = false;
+            scanInput.focus();             // scanner only when enabled
+        }
+    });
+</script>
+<script>
+let autoRedirectTimer;
+let countdown = 200; // 20 seconds
+const timerDisplay = document.getElementById("timer");
+
+// Start or reset auto-redirect timer
+function startAutoRedirect() {
+    countdown = 200;
+    timerDisplay.textContent = countdown;
+
+    if (autoRedirectTimer) clearInterval(autoRedirectTimer);
 
             // start new timer
-           autoRedirectTimer = setInterval(() => {
-               countdown--;
-               timerDisplay.textContent = countdown;
+    autoRedirectTimer = setInterval(() => {
+        countdown--;
+        timerDisplay.textContent = countdown;
 
-               if (countdown <= 0) {
-                   clearInterval(autoRedirectTimer);
-                   window.location.href = "@Url.Action("ProcessBatch", "Process", New With {.TraceID = batch.TraceID})";
-               }
-           }, 1000);
-    }
+        if (countdown <= 0) {
+            clearInterval(autoRedirectTimer);
+            window.location.href = '@Url.Action("ProcessBatch", "Process", New With {.TraceID = batch.TraceID})';
+        }
+    }, 1000);
+}
 
-    // Start timer initially
-    startAutoRedirect();
+// Start timer initially
+startAutoRedirect();
 
-    // Reset timer every time user scans material
+// Submit button logic
+const submitBtn = document.getElementById("submitMaterial");
+
+if (submitBtn) {
+    submitBtn.addEventListener("click", function () {
+
+
+        const rows = document.querySelectorAll("#materialList tr");
+        if (rows.length === 0) {
+            alert("No material scanned.");
+            return;
+        }
+        else {
+            // STOP auto redirect timer
+            if (autoRedirectTimer) {
+                clearInterval(autoRedirectTimer);
+            }
+
+        // Optional safety
+        this.disabled = true;
+
+        // DIRECT REDIRECT
+        window.location.href =
+            '@Url.Action("ProcessBatch","Process", New With {.TraceID = batch.TraceID})';
+        }
+
+    });
+}
+
+
+// QR scan handler
     document.getElementById("materialQr")?.addEventListener("change", function () {
+        // ⛔ BLOCK SCANNER IF MANUAL MODE
+        if (manualToggle.checked) {
+            this.value = "";
+            return;
+        }
+
         const qr = this.value.trim();
         if (!qr) return;
 
-        const parts = qr.split("\t");
-        if (parts.length !== 6) {
-            alert("Invalid Material QR");
-            this.value = "";
-            startAutoRedirect();
-            return;
-        }
+    const parts = qr.split("\t");
+    if (parts.length !== 6) {
+        alert("Invalid Material QR");
+        this.value = "";
+        startAutoRedirect();
+        return;
+    }
 
-        const rawQty = parts[2].replace(/,/g, "").trim();
-        const usageQty = parseInt(rawQty, 10);
+    const rawQty = parts[2].replace(/,/g, "").trim();
+    const usageQty = parseInt(rawQty, 10);
 
-        if (isNaN(usageQty)) {
-            alert("Invalid quantity in QR");
-            this.value = "";
-            return;
-        }
+    if (isNaN(usageQty)) {
+        alert("Invalid quantity in QR");
+        this.value = "";
+        return;
+    }
 
-        const payload = {
-            TraceID: document.getElementById("traceId").value,
-            ProcID: parseInt(document.getElementById("procId").value, 10),
-            PartCode: document.getElementById("partCode").value,
-            LowerMaterial: parts[0],
-            BatchLot: parts[1],
-            UsageQty: usageQty,
-            UOM: parts[3].toUpperCase(),
-            VendorCode: parts[4],
-            VendorLot: parts[5]
-        };
+    const payload = {
+        TraceID: document.getElementById("traceId").value,
+        ProcID: parseInt(document.getElementById("procId").value, 10),
+        PartCode: document.getElementById("partCode").value,
+        LowerMaterial: parts[0],
+        BatchLot: parts[1],
+        UsageQty: usageQty,
+        UOM: parts[3].toUpperCase(),
+        VendorCode: parts[4],
+        VendorLot: parts[5]
+    };
 
-        fetch("@Url.Action("ScanMaterial")", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        })
-        .then(r => r.text())
-        .then(res => {
-            if (res !== "OK") {
-                alert(res);
-                this.value = "";
-                this.focus();
-                window.location.href = window.location.href;
-
-                return;
-            }
-            if (res === "DUPLICATE") {
-                alert("⚠ Material already scanned before!");
-            }
-
-            window.location.href = window.location.href;
-
+    fetch('@Url.Action("ScanMaterial")', {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    })
+    .then(r => r.text())
+    .then(res => {
+        if (res === "DUPLICATE") {
+            alert("⚠ Material already scanned before!");
+        } else if (res !== "OK") {
+            alert(res);
             this.value = "";
             this.focus();
+            // Optional: reload page if you want duplicate prevention
+            window.location.href = window.location.href;
+            return;
+        }
 
-            // Reset auto-redirect timer after scan
-            startAutoRedirect();
-        });
+        // Clear input and focus
+        this.value = "";
+        this.focus();
+        window.location.href = window.location.href;
+
+        // Reset auto-redirect timer
+        startAutoRedirect();
+    })
+    .catch(err => {
+        alert("Scan error: " + err);
+        this.value = "";
+        this.focus();
+        startAutoRedirect();
     });
+});
+
+document.getElementById("addManualMaterial")
+?.addEventListener("click", function () {
+
+    const lower = mLowerMaterial.value.trim();
+    const lot   = mBatchLot.value.trim();
+    const qty   = parseInt(mQty.value, 10);
+    const uom   = mUom.value.trim().toUpperCase();
+    const v     = mVendor.value.trim();
+    const vlot  = mVendorLot.value.trim();
+
+    if (!lower || !lot || isNaN(qty)) {
+        alert("Incomplete manual material");
+        return;
+    }
+
+    const payload = {
+        TraceID: traceId.value,
+        ProcID: parseInt(procId.value),
+        PartCode: partCode.value,
+        LowerMaterial: lower,
+        BatchLot: lot,
+        UsageQty: qty,
+        UOM: uom,
+        VendorCode: v,
+        VendorLot: vlot,
+        IsManual: true
+    };
+
+    fetch('@Url.Action("ScanMaterial","Process")', {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    })
+    .then(r => r.text())
+    .then(res => {
+        if (res !== "OK") {
+            alert(res);
+            return;
+        }
+
+        // UI only AFTER DB success
+        const tr = document.createElement("tr");
+        tr.dataset.manual = "1";
+        tr.innerHTML = `
+            <td>${lower}</td>
+            <td>${lot}</td>
+            <td>${qty}</td>
+            <td>${uom}</td>
+            <td>${v}</td>
+            <td>${vlot}</td>
+            <td><button class="mes-btn-danger">✖</button></td>
+        `;
+        tr.querySelector("button").onclick = () => tr.remove();
+        materialList.appendChild(tr);
+
+        // clear form
+        ["mLowerMaterial","mBatchLot","mQty","mUom","mVendor","mVendorLot"]
+            .forEach(id => document.getElementById(id).value = "");
+
+        startAutoRedirect();
+    });
+});
+
+
+
 </script>
 <script>
    function removeMaterial(id, isDuplicate) {

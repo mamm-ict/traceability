@@ -2,6 +2,7 @@ Public Class MaterialLog
     Public Property ID As Integer
     Public Property TraceID As String
     Public Property ProcID As Integer
+    Public Property ProcCode As String
     Public Property PartCode As String
     Public Property LowerMaterial As String
     Public Property BatchLot As String

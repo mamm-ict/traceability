@@ -1,5 +1,5 @@
 ﻿@Code
-    ViewData("Title") = "Process QR"
+    ViewData("Title") = "Process Details"
     Dim process As Dictionary(Of String, String) = ViewData("Process")
 End Code
 
@@ -9,7 +9,7 @@ End Code
     @<div class="mes-card mes-process-card">
         <h2 class="mes-card-title">@process("ProcessName")</h2>
 
-        <p><strong>Code:</strong> @process("ProcessCode")</p>
+        <p><strong>Machine:</strong> @process("ProcessCode")</p>
         <p><strong>Category:</strong> @process("ProcFlowId")</p>
         <p><strong>Level:</strong> @process("ProcessLevel")</p>
 
@@ -23,3 +23,8 @@ End If
         Back to Process List
     </a>
 </p>
+<script>
+    setTimeout(function () {
+        window.location.href = '@Url.Action("ProcessMaster", "Process")';
+    }, 20000);
+</script>

@@ -7,6 +7,7 @@
     Public Property LastProc As String
     Public Property Status As String
     Public Property Shift As String
+    Public Property Die As String
     Public Property Line As String
     Public Property OperatorID As String
     Public Property BaraCoreDate As DateTime

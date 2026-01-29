@@ -7,10 +7,23 @@
     If batchList IsNot Nothing Then
         ' Add a temporary property for grouping
         groupedBatches = batchList.
-            Select(Function(b) New With {Key .CreatedDate = b("CreatedDate"), Key .Batch = b}).
-            GroupBy(Function(x) x.CreatedDate).
-            OrderByDescending(Function(g) g.Key).
-            Select(Function(g) New With {Key .CreatedDate = g.Key, Key .Batches = g.Select(Function(x) x.Batch)})
+       Select(Function(b)
+                  Dim traceDate As DateTime = DateTime.ParseExact(b("TraceID").Substring(4, 8), "yyyyMMdd", Nothing)
+                  Return New With {
+                      Key .CreatedDate = traceDate.ToString("yyyy-MM-dd"),
+                      Key .Batch = b
+                  }
+              End Function).
+       GroupBy(Function(x) x.CreatedDate).
+       OrderByDescending(Function(g) g.Key).
+       Select(Function(g) New With {
+           Key .CreatedDate = g.Key,
+           Key .Batches = g.Select(Function(x) x.Batch).
+                               OrderByDescending(Function(b) b("Shift")).
+                               ThenByDescending(Function(b) b("TraceID")).
+                               ToList()
+       })
+
     End If
 End Code
 

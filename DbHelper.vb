@@ -254,13 +254,16 @@ Public Class DbHelper
         traceId As String,
         lastProcCode As String)
 
+        Dim today As Date = TimeProvider.Now
+
         Using conn As New SqlConnection(GetConnectionString("BatchDB"))
             conn.Open()
             Dim cmd As New SqlCommand(
             "UPDATE pp_trace_route
-            SET last_proc_code=@LastProc, update_date=GETDATE(), status = 'ONGOING'
+            SET last_proc_code=@LastProc, update_date=@Today, status = 'ONGOING'
             WHERE trace_id=@TraceID", conn)
 
+            cmd.Parameters.AddWithValue("@Today", today)
             cmd.Parameters.AddWithValue("@LastProc", lastProcCode)
             cmd.Parameters.AddWithValue("@TraceID", traceId)
             cmd.ExecuteNonQuery()
@@ -309,6 +312,7 @@ Public Class DbHelper
 
             Dim count As Integer = Convert.ToInt32(cmdCheck.ExecuteScalar())
             Dim isDuplicate As Boolean = (count > 0)
+            Dim today As Date = TimeProvider.Now
 
             ' ✅ Insert material anyway
             Dim cmdInsert As New SqlCommand("
@@ -317,7 +321,7 @@ Public Class DbHelper
                  usage_qty, uom, vendor_code, vendor_lot, is_duplicate, created_date)
                 VALUES
                 (@TraceID, @ProcID, @PartCode, @LowerMaterial, @BatchLot,
-                 @UsageQty, @UOM, @VendorCode, @VendorLot, @IsDuplicate, GETDATE())
+                 @UsageQty, @UOM, @VendorCode, @VendorLot, @IsDuplicate, @Today)
             ", conn)
 
             cmdInsert.Parameters.AddWithValue("@TraceID", traceId)
@@ -330,6 +334,7 @@ Public Class DbHelper
             cmdInsert.Parameters.AddWithValue("@VendorCode", vendorCode)
             cmdInsert.Parameters.AddWithValue("@VendorLot", vendorLot)
             cmdInsert.Parameters.AddWithValue("@IsDuplicate", If(isDuplicate, 1, 0))
+            cmdInsert.Parameters.AddWithValue("@Today", today)
 
             cmdInsert.ExecuteNonQuery()
         End Using
@@ -348,6 +353,52 @@ Public Class DbHelper
         End Using
 
     End Sub
+
+    Public Shared Function GetTraceMaterialsByTrace(traceId As String) As List(Of MaterialLog)
+        Dim list As New List(Of MaterialLog)
+        Using conn As New SqlConnection(GetConnectionString("BatchDB"))
+            conn.Open()
+            Dim cmd As New SqlCommand("
+SELECT
+    p.proc_code,
+    m.lower_desc,
+    t.vendor_lot,
+    t.uom,
+    SUM(t.usage_qty) AS total_qty
+FROM pp_trace_material t
+INNER JOIN pp_master_process p
+    ON t.proc_id = p.id
+LEFT JOIN pp_master_material m
+    ON  t.lower_material = m.lower_item
+    AND t.part_code      = m.part_code
+    AND p.proc_level         = m.proc_level
+WHERE t.trace_id = @TraceID
+GROUP BY
+    p.proc_code,
+    m.lower_desc,
+    t.vendor_lot,
+    t.uom
+ORDER BY p.proc_code
+
+        ", conn)
+            cmd.Parameters.AddWithValue("@TraceID", traceId)
+
+            Using reader = cmd.ExecuteReader()
+                While reader.Read()
+                    Dim m As New MaterialLog With {
+                    .ProcCode = reader("proc_code").ToString(),
+                    .LowerMaterial = reader("lower_desc").ToString(),
+                    .UsageQty = Convert.ToInt64(reader("total_qty")),
+                    .UOM = reader("uom").ToString(),
+                    .VendorLot = reader("vendor_lot").ToString()
+                }
+                    list.Add(m)
+
+                End While
+            End Using
+        End Using
+        Return list
+    End Function
 
     Public Shared Function GetTraceMaterials(
             traceId As String,
@@ -438,7 +489,8 @@ Public Class DbHelper
         Dim processes = GetAllProcesses()
 
         ' Determine next process by level
-        Dim nextProcess = processes.FirstOrDefault(Function(p) p.Level = currentProcess.Level + 1)
+        'Dim nextProcess = processes.FirstOrDefault(Function(p) p.Level = currentProcess.Level + 1)
+        Dim nextProcess = processes.FirstOrDefault(Function(p) p.Level = currentProcess.Level)
         If nextProcess IsNot Nothing Then
             ' Check if next process already logged
             Dim logs = GetProcessLogsByTraceID(batch.TraceID)
@@ -447,7 +499,7 @@ Public Class DbHelper
                 ' Log next process as "In Progress"
                 LogBatchProcess(
                     traceId:=batch.TraceID,
-                    processId:=nextProcess.ID,
+                    processId:=currentProcess.ID,
                     operatorId:=operatorId,
                     qtyIn:=batch.CurQty,
                     qtyOut:=0,
@@ -456,19 +508,22 @@ Public Class DbHelper
                 )
 
                 ' Update batch last process
-                UpdateRouteLastProcess(batch.TraceID, nextProcess.Code)
+                UpdateRouteLastProcess(batch.TraceID, currentProcess.Code)
             End If
         End If
     End Sub
 
     Public Shared Sub CompleteFinalRoute(traceId As String)
+        Dim today As Date = TimeProvider.Now
+
         Using conn As New SqlConnection(GetConnectionString("BatchDB"))
             conn.Open()
             Dim cmd As New SqlCommand(
                 "UPDATE pp_trace_route
-                SET status = 'COMPLETED', update_date = GETDATE()
+                SET status = 'COMPLETED', update_date = @Today
                 WHERE trace_id = @TraceID", conn)
 
+            cmd.Parameters.AddWithValue("@Today", today)
             cmd.Parameters.AddWithValue("@TraceID", traceId)
             cmd.ExecuteNonQuery()
         End Using
@@ -509,13 +564,16 @@ Public Class DbHelper
                 cmd.ExecuteNonQuery()
             End Using
 
+            Dim today As Date = TimeProvider.Now
+
             ' 2️⃣ Tolak reject SAHAJA dari batch
             Using cmd2 As New SqlCommand("
                     UPDATE pp_trace_route
                     SET current_qty = current_qty - @RejectQty,
-                        update_date = GETDATE()
+                        update_date = @Today
                     WHERE trace_id = @TraceID
                 ", conn)
+                cmd2.Parameters.AddWithValue("@Today", today)
                 cmd2.Parameters.AddWithValue("@RejectQty", qtyReject)
                 cmd2.Parameters.AddWithValue("@TraceID", batch.TraceID)
                 cmd2.ExecuteNonQuery()
@@ -558,16 +616,18 @@ Public Class DbHelper
             End Using
         End Using
 
-        ' 2️⃣ VALIDATION
-        If batch.CurQty < finalQty + qtyReject Then
-            Throw New Exception("Qty reject terlalu besar. Melebihi baki batch.")
-        End If
+        ' 2️⃣ VALIDATION buffer reject
+        'If batch.CurQty < finalQty + qtyReject Then
+        '    Throw New Exception("Qty reject terlalu besar. Melebihi baki batch.")
+        'End If
 
         ' 3️⃣ KIRA qtyOut (INI LOGIK BETUL)
-        Dim qtyOut As Integer = batch.CurQty - finalQty - qtyReject
-        If qtyOut < 0 Then qtyOut = 0
+        'Dim qtyOut As Integer = batch.CurQty - finalQty - qtyReject
+        'If qtyOut < 0 Then qtyOut = 0
+        Dim qtyOut As Integer = 0
 
-        Dim qtyIn = finalQty
+        'Dim qtyIn = finalQty
+        Dim qtyIn = batch.CurQty - qtyReject
 
         ' 4️⃣ UPDATE PROCESS LOG
         Using conn As New SqlConnection(GetConnectionString("BatchDB"))
@@ -588,15 +648,18 @@ Public Class DbHelper
                 cmd.ExecuteNonQuery()
             End Using
 
+            Dim today As Date = TimeProvider.Now
+
             ' 5️⃣ UPDATE ROUTE (FINAL)
             Using cmd2 As New SqlCommand("
                     UPDATE pp_trace_route
-                    SET current_qty = @FinalQty,
+                    SET current_qty = @CurQty,
                         status = 'COMPLETED',
-                        update_date = GETDATE()
+                        update_date = @Today
                     WHERE trace_id = @TraceID
                 ", conn)
-                cmd2.Parameters.AddWithValue("@FinalQty", finalQty)
+                cmd2.Parameters.AddWithValue("@Today", today)
+                cmd2.Parameters.AddWithValue("@CurQty", qtyIn)
                 cmd2.Parameters.AddWithValue("@TraceID", batch.TraceID)
                 cmd2.ExecuteNonQuery()
             End Using
@@ -607,125 +670,128 @@ Public Class DbHelper
         batch.LastProc = process.Code
     End Sub
 
+    ' Buffer no longer in use -- Kept it just in case
     ' Ambil active buffer trace hari ini yang belum penuh (TotalQty < 1392)
-    Public Shared Function GetActiveBufferTrace(dateToday As DateTime) As TraceBuffer
-        Using conn As New SqlConnection(GetConnectionString("BatchDB"))
-            conn.Open()
-            Dim cmd As New SqlCommand("
-            SELECT TOP 1 *
-            FROM pp_trace_buffer
-            WHERE CAST(created_date AS DATE) = @Today
-              AND buffer_qty < 1392
-            ORDER BY buffer_trace_id DESC
-        ", conn)
-            cmd.Parameters.AddWithValue("@Today", dateToday.Date)
+    'Public Shared Function GetActiveBufferTrace(dateToday As DateTime) As TraceBuffer
+    '    Using conn As New SqlConnection(GetConnectionString("BatchDB"))
+    '        conn.Open()
+    '        Dim cmd As New SqlCommand("
+    '        SELECT TOP 1 *
+    '        FROM pp_trace_buffer
+    '        WHERE CAST(created_date AS DATE) = @Today
+    '          AND buffer_qty < 1392
+    '        ORDER BY buffer_trace_id DESC
+    '    ", conn)
+    '        cmd.Parameters.AddWithValue("@Today", dateToday.Date)
 
-            Using reader = cmd.ExecuteReader()
-                If reader.Read() Then
-                    Return New TraceBuffer With {
-                    .TraceID = reader("buffer_trace_id").ToString(),
-                    .TotalQty = Convert.ToInt32(reader("buffer_qty"))
-                }
-                End If
-            End Using
-        End Using
-        Return Nothing
-    End Function
+    '        Using reader = cmd.ExecuteReader()
+    '            If reader.Read() Then
+    '                Return New TraceBuffer With {
+    '                .TraceID = reader("buffer_trace_id").ToString(),
+    '                .TotalQty = Convert.ToInt32(reader("buffer_qty"))
+    '            }
+    '            End If
+    '        End Using
+    '    End Using
+    '    Return Nothing
+    'End Function
 
+    ' Buffer no longer in use - keeping it just in case
     ' Create new buffer trace ID based on last created today
-    Public Shared Function CreateNewBufferTrace(dateToday As DateTime, bufferQty As Integer, operatorId As Integer, logTraceId As String) As TraceBuffer
-        Dim lastTraceID As String = Nothing
+    'Public Shared Function CreateNewBufferTrace(dateToday As DateTime, bufferQty As Integer, operatorId As Integer, logTraceId As String) As TraceBuffer
+    '    Dim lastTraceID As String = Nothing
 
-        Using conn As New SqlConnection(GetConnectionString("BatchDB"))
-            conn.Open()
-            ' Ambil last buffer trace untuk hari ini
-            Dim cmd As New SqlCommand("
-                SELECT TOP 1 buffer_trace_id
-                FROM pp_trace_buffer
-                WHERE CAST(created_date AS DATE) = @Today
-                ORDER BY buffer_trace_id DESC
-            ", conn)
-            cmd.Parameters.AddWithValue("@Today", dateToday.Date)
-            lastTraceID = cmd.ExecuteScalar()?.ToString()
+    '    Using conn As New SqlConnection(GetConnectionString("BatchDB"))
+    '        conn.Open()
+    '        ' Ambil last buffer trace untuk hari ini
+    '        Dim cmd As New SqlCommand("
+    '            SELECT TOP 1 buffer_trace_id
+    '            FROM pp_trace_buffer
+    '            WHERE CAST(created_date AS DATE) = @Today
+    '            ORDER BY buffer_trace_id DESC
+    '        ", conn)
+    '        cmd.Parameters.AddWithValue("@Today", dateToday.Date)
+    '        lastTraceID = cmd.ExecuteScalar()?.ToString()
 
-            ' Generate next trace ID
-            'Dim nextNumber As Integer = 1
-            'If Not String.IsNullOrEmpty(lastTraceID) Then
-            '    Dim parts = lastTraceID.Split("-"c)
-            '    nextNumber = Convert.ToInt32(parts(2)) + 1
-            'End If
-            'Dim newTraceID = $"PPA-{dateToday:yyyyMMdd}-{nextNumber:000}"
+    '        ' Generate next trace ID
+    '        'Dim nextNumber As Integer = 1
+    '        'If Not String.IsNullOrEmpty(lastTraceID) Then
+    '        '    Dim parts = lastTraceID.Split("-"c)
+    '        '    nextNumber = Convert.ToInt32(parts(2)) + 1
+    '        'End If
+    '        'Dim newTraceID = $"PPA-{dateToday:yyyyMMdd}-{nextNumber:000}"
 
-            Dim newTraceID = GenerateTraceID()
+    '        Dim newTraceID = GenerateTraceID()
 
-            Dim logs As New List(Of Dictionary(Of String, Object))()
+    '        Dim logs As New List(Of Dictionary(Of String, Object))()
 
-            Dim lastRoute As New SqlCommand("SELECT * FROM pp_trace_route WHERE trace_id = @LogTraceID", conn)
-            lastRoute.Parameters.AddWithValue("@LogTraceID", logTraceId)
-            Using reader = lastRoute.ExecuteReader()
-                If reader.Read() Then
-                    Dim log As New Dictionary(Of String, Object)
-                    log("ModelName") = reader("model_name").ToString()
-                    log("PartCode") = reader("part_code").ToString()
-                    log("Shift") = reader("shift").ToString()
-                    log("Line") = reader("line").ToString()
-                    log("BaraCoreDate") = Convert.ToDateTime(reader("bara_core_date"))
-                    log("BaraCoreLot") = reader("bara_core_lot").ToString()
-                    logs.Add(log)
-                End If
-            End Using
+    '        Dim lastRoute As New SqlCommand("SELECT * FROM pp_trace_route WHERE trace_id = @LogTraceID", conn)
+    '        lastRoute.Parameters.AddWithValue("@LogTraceID", logTraceId)
+    '        Using reader = lastRoute.ExecuteReader()
+    '            If reader.Read() Then
+    '                Dim log As New Dictionary(Of String, Object)
+    '                log("ModelName") = reader("model_name").ToString()
+    '                log("PartCode") = reader("part_code").ToString()
+    '                log("Shift") = reader("shift").ToString()
+    '                log("Line") = reader("line").ToString()
+    '                log("BaraCoreDate") = Convert.ToDateTime(reader("bara_core_date"))
+    '                log("BaraCoreLot") = reader("bara_core_lot").ToString()
+    '                logs.Add(log)
+    '            End If
+    '        End Using
 
-            For Each log In logs
-                Dim routeCmd As New SqlCommand("
-                   INSERT INTO pp_trace_route
-                    (trace_id, model_name, part_code, initial_qty, current_qty, last_proc_code, status, shift, line, operator_id, bara_core_date, bara_core_lot, created_date, update_date, control_no)
-                    VALUES
-                    (@TraceID, @ModelName, @PartCode, @Qty, @Qty, '-', 'BUFFER', @Shift, @Line, @OperatorID, @BaraCoreDate, @BaraCoreLot, GETDATE(), GETDATE(), '-')
-                ", conn)
-                routeCmd.Parameters.AddWithValue("@TraceID", newTraceID)
-                routeCmd.Parameters.AddWithValue("@ModelName", log("ModelName"))
-                routeCmd.Parameters.AddWithValue("@PartCode", log("PartCode"))
-                routeCmd.Parameters.AddWithValue("@Shift", log("Shift"))
-                routeCmd.Parameters.AddWithValue("@Line", log("Line"))
-                routeCmd.Parameters.AddWithValue("@BaraCoreDate", log("BaraCoreDate"))
-                routeCmd.Parameters.AddWithValue("@BaraCoreLot", log("BaraCoreLot"))
-                routeCmd.Parameters.AddWithValue("@Qty", bufferQty)
-                routeCmd.Parameters.AddWithValue("@OperatorID", operatorId)
-                routeCmd.ExecuteNonQuery()
-            Next
+    '        For Each log In logs
+    '            Dim routeCmd As New SqlCommand("
+    '               INSERT INTO pp_trace_route
+    '                (trace_id, model_name, part_code, initial_qty, current_qty, last_proc_code, status, shift, line, operator_id, bara_core_date, bara_core_lot, created_date, update_date, control_no)
+    '                VALUES
+    '                (@TraceID, @ModelName, @PartCode, @Qty, @Qty, '-', 'BUFFER', @Shift, @Line, @OperatorID, @BaraCoreDate, @BaraCoreLot, GETDATE(), GETDATE(), '-')
+    '            ", conn)
+    '            routeCmd.Parameters.AddWithValue("@TraceID", newTraceID)
+    '            routeCmd.Parameters.AddWithValue("@ModelName", log("ModelName"))
+    '            routeCmd.Parameters.AddWithValue("@PartCode", log("PartCode"))
+    '            routeCmd.Parameters.AddWithValue("@Shift", log("Shift"))
+    '            routeCmd.Parameters.AddWithValue("@Line", log("Line"))
+    '            routeCmd.Parameters.AddWithValue("@BaraCoreDate", log("BaraCoreDate"))
+    '            routeCmd.Parameters.AddWithValue("@BaraCoreLot", log("BaraCoreLot"))
+    '            routeCmd.Parameters.AddWithValue("@Qty", bufferQty)
+    '            routeCmd.Parameters.AddWithValue("@OperatorID", operatorId)
+    '            routeCmd.ExecuteNonQuery()
+    '        Next
 
 
-            ' Insert new buffer trace
-            Dim insertCmd As New SqlCommand("
-            INSERT INTO pp_trace_buffer(buffer_trace_id, buffer_qty, created_date, created_by)
-            VALUES(@TraceID, 0, GETDATE(), @User)
-        ", conn)
-            insertCmd.Parameters.AddWithValue("@TraceID", newTraceID)
-            insertCmd.Parameters.AddWithValue("@Qty", bufferQty)
-            insertCmd.Parameters.AddWithValue("@User", operatorId)  ' kini INT
-            insertCmd.ExecuteNonQuery()
+    '        ' Insert new buffer trace
+    '        Dim insertCmd As New SqlCommand("
+    '        INSERT INTO pp_trace_buffer(buffer_trace_id, buffer_qty, created_date, created_by)
+    '        VALUES(@TraceID, 0, GETDATE(), @User)
+    '    ", conn)
+    '        insertCmd.Parameters.AddWithValue("@TraceID", newTraceID)
+    '        insertCmd.Parameters.AddWithValue("@Qty", bufferQty)
+    '        insertCmd.Parameters.AddWithValue("@User", operatorId)  ' kini INT
+    '        insertCmd.ExecuteNonQuery()
 
-            Return New TraceBuffer With {
-            .TraceID = newTraceID,
-            .TotalQty = bufferQty
-        }
-        End Using
-    End Function
+    '        Return New TraceBuffer With {
+    '        .TraceID = newTraceID,
+    '        .TotalQty = bufferQty
+    '    }
+    '    End Using
+    'End Function
 
+    ' No longer in use - keeping it as memories. HAHHAHA
     ' Insert mapping: link source trace → buffer trace
-    Public Shared Sub InsertBufferMap(bufferTraceID As String, sourceTraceID As String, qty As Integer)
-        Using conn As New SqlConnection(GetConnectionString("BatchDB"))
-            conn.Open()
-            Dim cmd As New SqlCommand("
-            INSERT INTO pp_trace_buffer_map(buffer_trace_id, ori_trace_id, ori_qty_used, created_date, printed_date)
-            VALUES(@BufferTraceID, @SourceTraceID, @Qty, GETDATE(), GETDATE())
-        ", conn)
-            cmd.Parameters.AddWithValue("@BufferTraceID", bufferTraceID)
-            cmd.Parameters.AddWithValue("@SourceTraceID", sourceTraceID)
-            cmd.Parameters.AddWithValue("@Qty", qty)
-            cmd.ExecuteNonQuery()
-        End Using
-    End Sub
+    'Public Shared Sub InsertBufferMap(bufferTraceID As String, sourceTraceID As String, qty As Integer)
+    '    Using conn As New SqlConnection(GetConnectionString("BatchDB"))
+    '        conn.Open()
+    '        Dim cmd As New SqlCommand("
+    '        INSERT INTO pp_trace_buffer_map(buffer_trace_id, ori_trace_id, ori_qty_used, created_date, printed_date)
+    '        VALUES(@BufferTraceID, @SourceTraceID, @Qty, GETDATE(), GETDATE())
+    '    ", conn)
+    '        cmd.Parameters.AddWithValue("@BufferTraceID", bufferTraceID)
+    '        cmd.Parameters.AddWithValue("@SourceTraceID", sourceTraceID)
+    '        cmd.Parameters.AddWithValue("@Qty", qty)
+    '        cmd.ExecuteNonQuery()
+    '    End Using
+    'End Sub
 
     ' Update total qty buffer trace
     Public Shared Sub UpdateBufferTraceQty(bufferTraceID As String, operatorId As String)
@@ -766,6 +832,8 @@ Public Class DbHelper
                 End If
             End Using
 
+            Dim today As Date = TimeProvider.Now
+
             For Each routeBuffs In routeBuff
                 Dim cmd2 As New SqlCommand("
                     UPDATE pp_trace_route
@@ -776,7 +844,7 @@ Public Class DbHelper
                     ), model_name = @ModelName, part_code = @PartCode, shift = @Shift, line = @Line, 
                         operator_id = @OperatorID,
                         bara_core_date = @BaraCoreDate,
-                        bara_core_lot = @BaraCoreLot, update_date = GETDATE()
+                        bara_core_lot = @BaraCoreLot, update_date = @Today
                     WHERE trace_id = @BufferTraceID
                 ", conn)
                 cmd2.Parameters.AddWithValue("@BufferTraceID", bufferTraceID)
@@ -787,6 +855,7 @@ Public Class DbHelper
                 cmd2.Parameters.AddWithValue("@OperatorID", operatorId) 'Shouldve took last person in process instead
                 cmd2.Parameters.AddWithValue("@BaraCoreDate", routeBuffs("BaraCoreDate"))
                 cmd2.Parameters.AddWithValue("@BaraCoreLot", routeBuffs("BaraCoreLot"))
+                cmd2.Parameters.AddWithValue("@Today", today)
                 cmd2.ExecuteNonQuery()
             Next
 
@@ -794,16 +863,30 @@ Public Class DbHelper
         End Using
     End Sub
     Public Shared Function GenerateTraceID() As String
-        Dim today As String = TimeProvider.Now.ToString("yyyyMMdd")
+        Dim now = TimeProvider.Now
+        Dim traceDate As DateTime
+
+        ' Shift boundary 07:45
+        Dim shiftBoundary = New TimeSpan(7, 45, 0)
+
+        ' If before 07:45 AM → use previous day
+        If now.TimeOfDay < shiftBoundary Then
+            traceDate = now.AddDays(-1)
+        Else
+            traceDate = now
+        End If
+
+        Dim dateStr As String = traceDate.ToString("yyyyMMdd")
         Dim seq As Integer = 1
 
         Using conn As New SqlConnection(DbHelper.GetConnectionString("BatchDB"))
             conn.Open()
 
             Dim cmd As New SqlCommand("
-            SELECT TOP 1 trace_id FROM pp_trace_route
-            WHERE trace_id LIKE 'PPA-" & today & "-%' 
-            ORDER BY trace_id DESC 
+            SELECT TOP 1 trace_id 
+            FROM pp_trace_route
+            WHERE trace_id LIKE 'PPA-" & dateStr & "-%' 
+            ORDER BY trace_id DESC
         ", conn)
 
             Dim lastIDObj = cmd.ExecuteScalar()
@@ -815,7 +898,37 @@ Public Class DbHelper
             End If
         End Using
 
-        Return "PPA-" & today & "-" & seq.ToString("000")
+        Return $"PPA-{dateStr}-{seq:000}"
+    End Function
+
+
+    Public Shared Function GenerateBaraCoreLot(BaraDate As DateTime) As String
+        Dim year As String = BaraDate.Year
+        Dim month As String = BaraDate.Month.ToString()
+        Dim day As Integer = BaraDate.Day
+
+        Dim baseYear As Integer = 2011
+        Dim alphabets As String = "ABCDEFGHJKLMNPQRSTUVWXYZ"
+
+        Dim calcYear As Integer = year - baseYear
+
+        If calcYear < 0 OrElse calcYear >= alphabets.Length Then
+            Throw New ArgumentOutOfRangeException("Year out of supported range.")
+        End If
+
+        Dim yearCode As Char = alphabets(calcYear)
+
+        If month.Equals("10") Then
+            month = "A"
+        ElseIf month.Equals("11") Then
+            month = "B"
+        ElseIf month.Equals("12") Then
+            month = "C"
+        Else
+            month = month
+        End If
+
+        Return yearCode & month & day.ToString("00")
     End Function
 
 End Class

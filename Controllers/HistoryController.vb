@@ -10,7 +10,7 @@ Public Class HistoryController
 
         Using conn As New SqlConnection(DbHelper.GetConnectionString("BatchDB"))
             conn.Open()
-            Dim cmd As New SqlCommand("SELECT * FROM pp_trace_route ORDER BY created_date DESC", conn)
+            Dim cmd As New SqlCommand("SELECT * FROM pp_trace_route ORDER BY created_date DESC, shift desc", conn)
             Using reader = cmd.ExecuteReader()
                 While reader.Read()
                     Dim batch As New Dictionary(Of String, String)
@@ -54,7 +54,8 @@ Public Class HistoryController
             conn.Open()
             Dim cmd As New SqlCommand("
             SELECT * 
-            FROM pp_trace_processes
+            FROM pp_trace_processes tp
+            JOIN pp_master_process mp ON tp.process_id = mp.id
             WHERE trace_id = @TraceID
             ORDER BY scan_time
         ", conn)
@@ -63,7 +64,7 @@ Public Class HistoryController
             Using reader = cmd.ExecuteReader()
                 While reader.Read()
                     Dim log As New Dictionary(Of String, String)
-                    log("ProcessID") = reader("process_id").ToString()
+                    log("ProcessID") = reader("proc_code").ToString()
                     log("ScanTime") = Convert.ToDateTime(reader("scan_time")).ToString("yyyy-MM-dd HH:mm:ss")
                     log("OperatorID") = reader("operator_id").ToString()
                     log("QtyIn") = reader("qty_in").ToString()
@@ -80,5 +81,50 @@ Public Class HistoryController
         Return View()
     End Function
 
+    Function FinishedProcess() As ActionResult
+        Dim buffers As New List(Of Dictionary(Of String, String))()
+
+        Using conn As New SqlConnection(DbHelper.GetConnectionString("BatchDB"))
+            conn.Open()
+
+            Dim sql As String = "
+                    SELECT 
+                        tr.trace_id,
+                        tr.model_name,
+                         mm.part_desc,
+                        tr.part_code,
+                        tr.current_qty,
+                        tp.id AS process_id,
+                        tp.qty_out,
+                        tr.printed_date
+                    FROM pp_trace_route tr
+                    JOIN pp_trace_processes tp
+                        ON tr.trace_id = tp.trace_id AND tr.current_qty = tp.qty_in
+                    JOIN pp_master_material mm ON tr.part_code = mm.upper_item 
+                    WHERE tr.status = 'COMPLETED'
+                      AND tp.status = 'Completed'
+                    ORDER BY tr.trace_id desc
+                "
+
+            Using cmd As New SqlCommand(sql, conn)
+                Using reader = cmd.ExecuteReader()
+                    While reader.Read()
+                        Dim buffer As New Dictionary(Of String, String)
+                        buffer("TraceID") = reader("trace_id").ToString()
+                        buffer("ModelName") = reader("model_name").ToString()
+                        buffer("PartCode") = reader("part_desc").ToString()
+                        buffer("CurQty") = reader("current_qty").ToString()
+                        buffer("ProcID") = reader("process_id").ToString()
+                        buffer("QtyOut") = reader("qty_out").ToString()   ' <-- ni yang jadi buffer_qty
+                        buffer("PrintedDate") = reader("printed_date").ToString()
+
+                        buffers.Add(buffer)
+                    End While
+                End Using
+            End Using
+        End Using
+
+        Return View(buffers)
+    End Function
 End Class
 

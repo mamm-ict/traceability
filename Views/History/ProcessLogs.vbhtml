@@ -10,10 +10,10 @@ End Code
         <thead>
             <tr>
                 <th>Time</th>
-                <th>Process ID</th>
+                <th>Machine</th>
                 <th>Status</th>
                 <th>Qty In</th>
-                <th>Qty Out</th>
+                @*<th>Qty Out</th>*@
                 <th>Qty Reject</th>
                 <th>Operator</th>
             </tr>
@@ -25,7 +25,7 @@ End Code
                     <td>@log("ProcessID")</td>
                     <td>@log("Status")</td>
                     <td>@log("QtyIn")</td>
-                    <td>@log("QtyOut")</td>
+                    @*<td>@log("QtyOut")</td>*@
                     <td>@log("QtyReject")</td>
                     <td>@log("OperatorID")</td>
                 </tr>

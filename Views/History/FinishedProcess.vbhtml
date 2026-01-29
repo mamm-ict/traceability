@@ -1,5 +1,5 @@
 ﻿@Code
-    ViewData("Title") = "Index"
+    ViewData("Title") = "Finished Process"
 
     Dim tableRows As New List(Of Dictionary(Of String, String))
     For Each row In Model
@@ -23,7 +23,7 @@
 
 End Code
 @*<link rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />*@
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />*@
 
 <style>
     .mes-btn-pdf {
@@ -43,6 +43,7 @@ End Code
         .mes-btn-pdf:hover {
             background: #bb2d3b;
         }
+
         .mes-btn-pdf img {
             width: 20px; /* ikut design button */
             height: 20px; /* ikut design button */
@@ -107,6 +108,7 @@ End Code
         justify-content: center;
         align-items: center;
     }
+
         #pdfModal h2 {
             font-size: 18px; /* kecilkan daripada default 32px */
             font-weight: 600;
@@ -123,6 +125,7 @@ End Code
                 vertical-align: middle;
                 margin-right: 6px; /* space icon-text */
             }
+
     #modalDownloadAgain,
     #modalClose {
         padding: 6px 12px; /* kurangkan supaya tak oversized */
@@ -137,18 +140,18 @@ End Code
             height: 16px;
         }
 
-        /* Modal box */
-        #pdfModal .modal-box {
-            background: #fff;
-            padding: 24px;
-            border-radius: 12px;
-            width: 100%;
-            max-width: 420px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            animation: pop 0.2s ease;
-            justify-content: flex-start !important;
-            text-align: left !important;
-        }
+    /* Modal box */
+    #pdfModal .modal-box {
+        background: #fff;
+        padding: 24px;
+        border-radius: 12px;
+        width: 100%;
+        max-width: 420px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        animation: pop 0.2s ease;
+        justify-content: flex-start !important;
+        text-align: left !important;
+    }
 
     @@keyframes pop {
         from {
@@ -241,9 +244,9 @@ End Code
                 <th>Trace ID</th>
                 <th>Model</th>
                 <th>Part Code</th>
-                <th>Qty</th>
+                <th>Quantity</th>
                 <th class="col-hidden">Process ID</th>
-                <th>Buffer</th>
+                @*<th>Buffer</th>*@
                 <th style="width:120px; text-align:center;">Action</th>
             </tr>
         </thead>
@@ -271,9 +274,9 @@ End Code
                         @row("ProcID")
                     </td>
 
-                    <td>
+                    @*<td>
                         @row("QtyOut")
-                    </td>
+                    </td>*@
 
                     <td style="text-align:center;">
                         <button class="mes-btn-pdf pdf-btn"
@@ -304,7 +307,7 @@ End Code
 
         <div class="modal-actions">
             <button id="modalDownloadAgain">
-                @*<i class="fa-solid fa-download"></i>*@ 
+                @*<i class="fa-solid fa-download"></i>*@
                 <img src="~/download-solid-full.svg" />Download Again
             </button>
             <button id="modalClose">Cancel</button>
