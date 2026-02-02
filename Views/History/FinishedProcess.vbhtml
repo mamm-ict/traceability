@@ -20,12 +20,73 @@
 
         tableRows.Add(newRow)
     Next
-
+    ' Group data by PartCode
+    Dim grouped As New Dictionary(Of String, List(Of Dictionary(Of String, String)))
+    For Each row In Model
+        Dim part = row("PartCode")
+        If Not grouped.ContainsKey(part) Then
+            grouped(part) = New List(Of Dictionary(Of String, String))
+        End If
+        grouped(part).Add(row)
+    Next
 End Code
 @*<link rel="stylesheet"
     href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />*@
-
 <style>
+    .accordion-item {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+
+    .accordion-header {
+        background: #f5f5f5;
+        padding: 12px 16px;
+        cursor: pointer;
+        font-weight: 600;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: background 0.2s;
+    }
+
+        .accordion-header:hover {
+            background: #e0e0e0;
+        }
+
+        .accordion-header::after {
+            content: '\25BC'; /* down arrow */
+            transition: transform 0.3s;
+        }
+
+        .accordion-header.active::after {
+            transform: rotate(-180deg);
+        }
+
+    .accordion-body {
+        display: none;
+        padding: 12px 16px;
+        background: #fff;
+    }
+
+    .mes-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+        .mes-table th, .mes-table td {
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+
+        .mes-table th {
+            background: #f0f0f0;
+            font-weight: 600;
+        }
+
     .mes-btn-pdf {
         background: #dc3545;
         color: #fff;
@@ -35,6 +96,7 @@ End Code
         font-size: 14px;
         font-weight: 600;
         cursor: pointer;
+        transition: background 0.2s;
         display: inline-flex;
         align-items: center;
         gap: 6px;
@@ -50,6 +112,9 @@ End Code
             vertical-align: middle;
             margin-right: 6px; /* jarak icon dengan text */
         }
+</style>
+
+<style>
 
     .mes-table td {
         vertical-align: middle;
@@ -60,20 +125,20 @@ End Code
         font-weight: 600;
     }
 
-    table {
-        background: #fff;
-    }
-
-        table th {
-            background: #f8f9fa;
-            text-align: center;
-            vertical-align: middle;
+    /*        table {
+            background: #fff;
         }
 
-        table td {
-            vertical-align: middle;
-            text-align: center;
-        }
+            table th {
+                background: #f8f9fa;
+                text-align: center;
+                vertical-align: middle;
+            }
+
+            table td {
+                vertical-align: middle;
+                text-align: center;
+            }*/
 
     /* PDF button */
     .pdf-btn {
@@ -228,70 +293,67 @@ End Code
     .mes-table td,
     .mes-table th {
         padding: 10px 12px;
-        white-space: nowrap;
+        white-space: normal; /* allow wrapping */
+        word-break: break-word; /* force long words to wrap */
     }
+
+    @@media (max-width: 768px) {
+    .mes-table {
+        display: block;
+        overflow-x: auto;
+        width: 100%;
+    }
+
+    .mes-table th,
+    .mes-table td {
+        white-space: normal;
+        word-break: break-word;
+    }
+}
+
 </style>
 <h1 class="mes-title">
     Completed Batches
 </h1>
-<div class="mes-card mes-process-card">
 
-
-
-    <table class="mes-table">
-        <thead>
-            <tr>
-                <th>Trace ID</th>
-                <th>Model</th>
-                <th>Part Code</th>
-                <th>Quantity</th>
-                <th class="col-hidden">Process ID</th>
-                @*<th>Buffer</th>*@
-                <th style="width:120px; text-align:center;">Action</th>
-            </tr>
-        </thead>
-
-        <tbody>
-            @For Each row In tableRows
-                @<tr>
-                    <td style="font-weight:600;">
-                        @row("TraceID")
-                    </td>
-
-                    <td>
-                        @row("ModelName")
-                    </td>
-
-                    <td>
-                        @row("PartCode")
-                    </td>
-
-                    <td>
-                        @row("CurQty")
-                    </td>
-
-                    <td class="col-hidden">
-                        @row("ProcID")
-                    </td>
-
-                    @*<td>
-                        @row("QtyOut")
-                    </td>*@
-
-                    <td style="text-align:center;">
-                        <button class="mes-btn-pdf pdf-btn"
-                                data-traceid="@row("TraceID")">
-                            @*<i class="fa-solid fa-file-pdf"></i>*@
-                            <img src="~/file-pdf-solid-full (1).svg" />
-                            PDF
-                        </button>
-                    </td>
-                </tr>
-            Next
-        </tbody>
-    </table>
-
+<div class="accordion">
+    @For Each partKvp In grouped
+        @<div class="accordion-item">
+            <div class="accordion-header" onclick="toggleAccordion(this)">
+                @partKvp.Key
+            </div>
+            <div class="accordion-body">
+                <table class="mes-table">
+                    <thead>
+                        <tr>
+                            <th> Trace ID</th>
+                            <th> Model</th>
+                            <th> Quantity</th>
+                            <th> Time </th>
+                            <th> Last Print </th>
+                            <th> Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @For Each row In partKvp.Value
+                            @<tr>
+                                <td>@row("TraceID")</td>
+                                <td>@row("ModelName")</td>
+                                <td>@row("CurQty")</td>
+                                <td>@row("UpdateDate")</td>
+                                <td>@row("PrintedDate")</td>
+                                <td>
+                                    <button class="mes-btn-pdf" data-traceid="@row("TraceID")"> <img src="~/file-pdf-solid-full (1).svg" /> PDF</button>
+                                </td>
+                            </tr>
+                        Next
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    Next
 </div>
+
 
 <!-- Modal -->
 <div id="pdfModal">
@@ -314,7 +376,17 @@ End Code
         </div>
     </div>
 </div>
-
+<script>
+    function toggleAccordion(header) {
+        header.classList.toggle('active');
+        const body = header.nextElementSibling;
+        if (body.style.display === 'block') {
+            body.style.display = 'none';
+        } else {
+            body.style.display = 'block';
+        }
+    }
+</script>
 
 <script>
     const pdfModal = document.getElementById("pdfModal");
@@ -323,28 +395,29 @@ End Code
     const btnDownloadAgain = document.getElementById("modalDownloadAgain");
     const btnClose = document.getElementById("modalClose");
 
-    let currentTraceId = null; // Track which PDF is active in modal
+    let currentTraceId = null;
 
-    document.querySelectorAll(".pdf-btn").forEach(btn => {
-        btn.addEventListener("click", function () {
-            const traceId = this.dataset.traceid;
-            currentTraceId = traceId;
+    // Event delegation untuk semua PDF button dalam accordion
+    document.querySelector('.accordion').addEventListener('click', function (e) {
+        const btn = e.target.closest('.mes-btn-pdf');
+        if (!btn) return; // bukan button
 
-            fetch(`/Process/CheckPdfStatus?traceId=${traceId}`)
-                .then(r => r.json())
-                .then(data => {
-                    if (data.alreadyPrinted) {
-                        modalMessage.textContent = `PDF for Trace ID ${traceId} already exists.`;
-                        modalLink.href = `/Process/OpenExistingPdf?traceId=${traceId}`;
-                        modalLink.textContent = "Open existing PDF";
-                        pdfModal.style.display = "flex";
-                    } else {
-                        window.open(`/Process/DownloadTracePdf?traceId=${traceId}`, "_blank");
-                    }
-                });
-        });
+        const traceId = btn.dataset.traceid;
+        currentTraceId = traceId;
+
+        fetch(`/Process/CheckPdfStatus?traceId=${traceId}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.alreadyPrinted) {
+                    modalMessage.textContent = `PDF for Trace ID ${traceId} already exists.`;
+                    modalLink.href = `/Process/OpenExistingPdf?traceId=${traceId}`;
+                    modalLink.textContent = "Open existing PDF";
+                    pdfModal.style.display = "flex";
+                } else {
+                    window.open(`/Process/DownloadTracePdf?traceId=${traceId}`, "_blank");
+                }
+            });
     });
-
 
     // Download again generates new PDF
     btnDownloadAgain.onclick = () => {
@@ -358,4 +431,3 @@ End Code
         pdfModal.style.display = "none";
     };
 </script>
-

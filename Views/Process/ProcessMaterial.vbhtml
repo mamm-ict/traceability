@@ -49,9 +49,17 @@
             activeProcessId.Value,
             batch.PartCode
         )
+
+        ' Pass required materials (just lower_item strings) to JS
+        Dim requiredMaterials As List(Of Dictionary(Of String, String)) =
+    DbHelper.GetRequiredMaterials(batch.TraceID, activeProcessId.Value, batch.PartCode)
+
+        ViewData("RequiredMaterials") = requiredMaterials
     End If
 
     ViewData("Materials") = materials
+
+
     '' ======= FORCE ENABLE FOR TESTING =======
     'enableRawMaterial = True
 
@@ -96,23 +104,22 @@ End Code
                    autocomplete="off" autofocus
                    placeholder="Scan material QR here" />
 
-
-
-
+            <div id="materialStatus"
+                 style="margin-top:10px; font-weight:bold;"></div>
             <!-- LIST TABLE -->
             <div style="overflow-x:auto; margin-top:20px;">
                 <div id="manualMaterialForm" style="display:none; margin-bottom:20px;">
 
-                    <input class="mes-input" id="mLowerMaterial" placeholder="Lower Material" />
-                    <input class="mes-input" id="mBatchLot" placeholder="Batch Lot" />
+                    <input class="mes-input vk-input" id="mLowerMaterial" placeholder="Lower Material" />
+                    <input class="mes-input vk-input" id="mBatchLot" placeholder="Batch Lot" />
 
                     <div style="display:flex; gap:10px;">
-                        <input class="mes-input" id="mQty" placeholder="Qty" type="number" />
-                        <input class="mes-input" id="mUom" placeholder="UOM" />
+                        <input class="mes-input vk-input" id="mQty" placeholder="Qty" type="number" />
+                        <input class="mes-input vk-input" id="mUom" placeholder="UOM" />
                     </div>
 
-                    <input class="mes-input" id="mVendor" placeholder="Vendor Code" />
-                    <input class="mes-input" id="mVendorLot" placeholder="Vendor Lot" />
+                    <input class="mes-input vk-input" id="mVendor" placeholder="Vendor Code" />
+                    <input class="mes-input vk-input" id="mVendorLot" placeholder="Vendor Lot" />
 
                     <button type="button" class="mes-btn-primary" id="addManualMaterial">
                         ➕ Add Manual Material
@@ -310,7 +317,15 @@ const submitBtn = document.getElementById("submitMaterial");
 
 if (submitBtn) {
     submitBtn.addEventListener("click", function () {
+        const check = checkRequiredMaterials();
 
+        if (!check.ok) {
+            alert(
+                "❌ Required material not complete.\n\nMissing:\n- " +
+                check.missing.join("\n- ")
+            );
+            return;
+        }
 
         const rows = document.querySelectorAll("#materialList tr");
         if (rows.length === 0) {
@@ -332,7 +347,7 @@ if (submitBtn) {
         }
 
     });
-}
+    }
 
 
 // QR scan handler
@@ -448,6 +463,11 @@ document.getElementById("addManualMaterial")
             alert(res);
             return;
         }
+        alert("Succefully added material");
+        this.value = "";
+        this.focus();
+        // Optional: reload page if you want duplicate prevention
+        window.location.href = window.location.href;
 
         // UI only AFTER DB success
         const tr = document.createElement("tr");
@@ -477,10 +497,10 @@ document.getElementById("addManualMaterial")
 </script>
 <script>
    function removeMaterial(id, isDuplicate) {
-        if (!isDuplicate) {
-            alert("Cannot delete original material!");
-            return;
-        }
+        //if (!isDuplicate) {
+        //    alert("Cannot delete original material!");
+        //    return;
+        //}
 
         if (!confirm("Remove this duplicate material?")) return;
 
@@ -498,4 +518,50 @@ document.getElementById("addManualMaterial")
             }
         });
     }
+</script>
+<script>
+   const REQUIRED_MATERIALS =
+    @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewData("RequiredMaterials")));
+
+function getScannedMaterials() {
+    return Array.from(document.querySelectorAll("#materialList tr"))
+        .map(r => r.dataset.lowermaterial);
+}
+
+    function checkRequiredMaterials() {
+        const scanned = getScannedMaterials();
+
+        const missing = REQUIRED_MATERIALS.filter(rm =>
+            !scanned.includes(rm.lowerItem)
+        );
+
+        return {
+            ok: missing.length === 0,
+            missing: missing.map(m => `${m.lowerDesc} (${m.lowerItem})`)
+        };
+    }
+
+
+
+// Update status on screen
+    function updateMaterialStatus() {
+        const status = document.getElementById("materialStatus");
+        console.log("status div:", status);
+        const check = checkRequiredMaterials();
+        console.log("check result:", check);
+
+        if (!status) return;
+
+        if (check.ok) {
+            status.style.color = "green";
+            status.textContent = "✅ All required materials present";
+        } else {
+            status.style.color = "red";
+            status.textContent = "⚠ Missing: " + check.missing.join(", ");
+        }
+    }
+
+// Call after scan or manual add
+updateMaterialStatus();
+
 </script>

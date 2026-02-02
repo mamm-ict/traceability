@@ -225,7 +225,7 @@ Public Class ProcessController
             Return RedirectToAction("StartProcess")
         End If
 
-        Dim batch As Batch = LoadBatch(traceId)
+        Dim batch As Batch = DbHelper.LoadBatch(traceId)
         If batch Is Nothing Then
             Return Content("Batch not found")
         End If
@@ -382,7 +382,7 @@ Public Class ProcessController
             Return RedirectToAction("StartProcess")
         End If
 
-        Dim batch As Batch = LoadBatch(TraceID)
+        Dim batch As Batch = DbHelper.LoadBatch(TraceID)
         Dim processes As List(Of ProcessMaster) = DbHelper.GetAllProcesses()
         Dim logs As List(Of ProcessLog) = DbHelper.GetProcessLogsByTraceID(TraceID).OrderBy(Function(l) l.ScanTime).ToList()
 
@@ -411,68 +411,84 @@ Public Class ProcessController
     Public Function ScanMaterial(model As MaterialLog) As ActionResult
         Try
             ' 🔐 SAFETY CHECK
-            If model Is Nothing Then
-                Return Content("Invalid payload")
-            End If
+            If model Is Nothing Then Return Content("Invalid payload")
+
+            Dim resolvedLowerItem As String = Nothing
+            Dim resolvedLowerDesc As String = Nothing
 
             Using conn As New SqlConnection(DbHelper.GetConnectionString("BatchDB"))
                 conn.Open()
 
-                Dim cmd2 As New SqlCommand("SELECT mp.proc_level, mp.proc_flow_id FROM pp_master_process mp 
-                JOIN pp_master_material mm ON mp.proc_level = mm.proc_level
-                WHERE mp.id = @Id", conn)
-                cmd2.Parameters.AddWithValue("@Id", model.ProcID)
+                ' 🔹 Get current process level & flow
+                Dim cmd0 As New SqlCommand("
+                SELECT proc_level, proc_flow_id
+                FROM pp_master_process
+                WHERE id = @ProcID
+            ", conn)
+                cmd0.Parameters.AddWithValue("@ProcID", model.ProcID)
 
-                Dim level As Object = Nothing
-                Dim flowId As Object = Nothing
-
-                Using reader As SqlDataReader = cmd2.ExecuteReader()
+                Dim level As Integer = 0
+                Dim flowId As String = ""
+                Using reader As SqlDataReader = cmd0.ExecuteReader()
                     If reader.Read() Then
-                        level = reader("proc_level")
-                        flowId = reader("proc_flow_id")
+                        level = Convert.ToInt32(reader("proc_level"))
+                        flowId = reader("proc_flow_id").ToString()
                     End If
                 End Using
 
-                Dim cmd As New SqlCommand("SELECT 1
-                    FROM pp_master_material mm
-                    WHERE mm.part_code = @PartCode
-                    AND mm.lower_item = @LowerMaterial
-                    AND mm.proc_level = @Level
-                    AND mm.proc_flow_id = @FlowId
-                    ", conn)
+                ' 🔹 Determine if input is digit or text
+                Dim inputIsDigit As Boolean = model.LowerMaterial.All(AddressOf Char.IsDigit)
+
+                ' 🔹 Check against required materials for this trace/process/level
+                Dim cmd As New SqlCommand("
+                SELECT TOP 1 mm.lower_item, mm.lower_desc
+                FROM pp_master_material mm
+                JOIN pp_trace_route tr
+                    ON mm.part_code = tr.part_code
+                    AND tr.trace_id = @TraceID
+                WHERE mm.part_code = @PartCode
+                  AND mm.proc_level = @Level
+                  AND mm.proc_flow_id = @FlowId
+                  AND ((@InputIsDigit = 1 AND mm.lower_item = @Input)
+                       OR (@InputIsDigit = 0 AND mm.lower_desc = @Input))
+            ", conn)
 
                 cmd.Parameters.AddWithValue("@PartCode", model.PartCode)
-                cmd.Parameters.AddWithValue("@LowerMaterial", model.LowerMaterial)
                 cmd.Parameters.AddWithValue("@Level", level)
                 cmd.Parameters.AddWithValue("@FlowId", flowId)
+                cmd.Parameters.AddWithValue("@TraceID", model.TraceID)
+                cmd.Parameters.AddWithValue("@Input", model.LowerMaterial)
+                cmd.Parameters.AddWithValue("@InputIsDigit", If(inputIsDigit, 1, 0))
 
-                Dim exists As Object = cmd.ExecuteScalar()
+                Using reader = cmd.ExecuteReader()
+                    If reader.Read() Then
+                        resolvedLowerItem = reader("lower_item").ToString()
+                        resolvedLowerDesc = reader("lower_desc").ToString()
+                    End If
+                End Using
 
-                Debug.WriteLine(level & flowId & model.PartCode & model.LowerMaterial)
-
-                ' ❌ MATERIAL TAK VALID → STOP & SURUH SCAN LAIN
-                If exists Is Nothing Then
-                    Return Content("Material not valid for this part. Please scan another material.")
+                ' ❌ Material invalid → stop
+                If String.IsNullOrEmpty(resolvedLowerItem) Then
+                    Return Content("Material not valid for this process/level. Please scan another material.")
                 End If
-            End Using
 
-            ' 🔥 SATU-SATUNYA TEMPAT INSERT
-            DbHelper.InsertTraceMaterial(
+                ' 🔥 Insert material (allow duplicates)
+                DbHelper.InsertTraceMaterial(
                 model.TraceID,
                 model.ProcID,
                 model.PartCode,
-                model.LowerMaterial,
+                resolvedLowerItem,
                 model.BatchLot,
                 model.UsageQty,
                 model.UOM,
                 model.VendorCode,
                 model.VendorLot
             )
+            End Using
 
-            ' 2️⃣ Check buffer flag
+            ' 🔹 Update buffer log if needed
             Dim process = DbHelper.GetProcessById(model.ProcID)
             If process.BufferFlag = 1 Then
-                ' Set process log status to Pending Completion
                 Dim log = DbHelper.GetProcessLogsByTraceID(model.TraceID) _
                         .FirstOrDefault(Function(l) l.ProcessID = model.ProcID AndAlso l.Status = "In Progress")
                 If log IsNot Nothing Then
@@ -481,12 +497,11 @@ Public Class ProcessController
             End If
 
             Return Content("OK")
-
         Catch ex As Exception
-            ' 👈 exception dari DbHelper (duplicate / partCode null)
             Return Content(ex.Message)
         End Try
     End Function
+
 
     <HttpPost>
     Public Function CompleteBuffer(logId As Integer, qtyReject As Integer, qtyOut As Integer, scannedProcessId As Integer,
@@ -670,32 +685,32 @@ Public Class ProcessController
         Return File(bytes, "application/pdf")
     End Function
 
-    Private Function LoadBatch(traceId As String) As Batch
-        Dim batch As Batch = Nothing
+    'Private Function LoadBatch(traceId As String) As Batch
+    '    Dim batch As Batch = Nothing
 
-        Using conn As New SqlConnection(DbHelper.GetConnectionString("BatchDB"))
-            conn.Open()
-            Dim cmd As New SqlCommand("SELECT * FROM pp_trace_route WHERE trace_id=@TraceID", conn)
-            cmd.Parameters.AddWithValue("@TraceID", traceId)
-            Using reader = cmd.ExecuteReader()
-                If reader.Read() Then
-                    batch = New Batch With {
-                        .TraceID = reader("trace_id").ToString(),
-                        .Die = reader("die").ToString(),
-                        .Line = reader("line").ToString(),
-                        .OperatorID = reader("operator_id").ToString(),
-                        .CreatedDate = Convert.ToDateTime(reader("created_date")),
-                        .Shift = reader("shift").ToString(),
-                        .Model = reader("model_name").ToString(),
-                        .PartCode = reader("part_code").ToString(),
-                        .BaraCoreLot = reader("bara_core_lot").ToString(),
-                        .BaraCoreDate = Convert.ToDateTime(reader("bara_core_date"))
-                    }
-                End If
-            End Using
-        End Using
-        Return batch
-    End Function
+    '    Using conn As New SqlConnection(DbHelper.GetConnectionString("BatchDB"))
+    '        conn.Open()
+    '        Dim cmd As New SqlCommand("SELECT * FROM pp_trace_route WHERE trace_id=@TraceID", conn)
+    '        cmd.Parameters.AddWithValue("@TraceID", traceId)
+    '        Using reader = cmd.ExecuteReader()
+    '            If reader.Read() Then
+    '                batch = New Batch With {
+    '                    .TraceID = reader("trace_id").ToString(),
+    '                    .Die = reader("die").ToString(),
+    '                    .Line = reader("line").ToString(),
+    '                    .OperatorID = reader("operator_id").ToString(),
+    '                    .CreatedDate = Convert.ToDateTime(reader("created_date")),
+    '                    .Shift = reader("shift").ToString(),
+    '                    .Model = reader("model_name").ToString(),
+    '                    .PartCode = reader("part_code").ToString(),
+    '                    .BaraCoreLot = reader("bara_core_lot").ToString(),
+    '                    .BaraCoreDate = Convert.ToDateTime(reader("bara_core_date"))
+    '                }
+    '            End If
+    '        End Using
+    '    End Using
+    '    Return batch
+    'End Function
 
     Function ProcessQR() As ActionResult
         Dim processList As New List(Of Dictionary(Of String, String))()

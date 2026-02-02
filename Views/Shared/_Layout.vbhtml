@@ -1,4 +1,51 @@
-﻿<!DOCTYPE html>
+﻿@Code
+    ' Path to schedule
+    Dim schedulePath As String = Server.MapPath("~/Config/schedule.txt")
+    Dim scheduleLines() As String = System.IO.File.ReadAllLines(schedulePath)
+
+    ' Shift names
+    Dim shiftNames() As String = {"A", "C"}
+
+    ' Map lines to shifts
+    Dim scheduleList = scheduleLines.
+        Where(Function(line) Not String.IsNullOrWhiteSpace(line)).
+        Select(Function(line, idx)
+                   Dim startTime As DateTime = DateTime.ParseExact(line.Trim(), "HH:mm", Nothing)
+                   Return New With {
+                       .Shift = shiftNames(idx),
+                       .Start = startTime
+                   }
+               End Function).ToList()
+
+    ' Tentukan current shift
+    Dim nowTime As DateTime = TimeProvider.Now()
+    Dim currentShift As String = ""
+
+    For i As Integer = 0 To scheduleList.Count - 1
+        Dim s = scheduleList(i)
+        Dim nextShift = scheduleList((i + 1) Mod scheduleList.Count)
+
+        ' End time = next shift start
+        Dim endTime As DateTime = nextShift.Start
+        ' Adjust endTime if crossing midnight
+        If endTime <= s.Start Then endTime = endTime.AddDays(1)
+
+        ' Adjust nowTime for comparison
+        Dim checkTime As DateTime = nowTime
+        If checkTime.TimeOfDay < s.Start.TimeOfDay AndAlso endTime.Day > checkTime.Day Then
+            checkTime = checkTime.AddDays(1)
+        End If
+
+        If checkTime >= s.Start AndAlso checkTime < endTime Then
+            currentShift = s.Shift
+            Exit For
+        End If
+    Next
+
+
+End Code
+
+<!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8" />
@@ -16,49 +63,82 @@
                     aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
-            <div class="collapse navbar-collapse d-sm-inline-flex justify-content-between">
-                <ul class="navbar-nav flex-grow-1">
-                    <li>@Html.ActionLink("Create Route Card", "Create", "Batch", New With {.area = ""}, New With {.class = "nav-link"})</li>
-                    <li>@Html.ActionLink("History", "Index", "History", New With {.area = ""}, New With {.class = "nav-link"})</li>
-                    <li>@Html.ActionLink("Process", "StartProcess", "Process", New With {.area = ""}, New With {.class = "nav-link"})</li>
-                    <li>@Html.ActionLink("Process Master", "ProcessMaster", "Process", New With {.area = ""}, New With {.class = "nav-link"})</li>
-                    <li>@Html.ActionLink("Final Process", "FinalProcess", "Process", New With {.area = ""}, New With {.class = "nav-link"})</li>
-                    <li>@Html.ActionLink("Finished Process", "FinishedProcess", "History", New With {.area = ""}, New With {.class = "nav-link"})</li>
+            <div class="collapse navbar-collapse">
+                <!-- LEFT LINKS -->
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">@Html.ActionLink("Create Route Card", "Create", "Batch", New With {.area = ""}, New With {.class = "nav-link"})</li>
+                    <li class="nav-item">@Html.ActionLink("History", "Index", "History", New With {.area = ""}, New With {.class = "nav-link"})</li>
+                    <li class="nav-item">@Html.ActionLink("Process", "StartProcess", "Process", New With {.area = ""}, New With {.class = "nav-link"})</li>
+                    <li class="nav-item">@Html.ActionLink("Process Master", "ProcessMaster", "Process", New With {.area = ""}, New With {.class = "nav-link"})</li>
+                    <li class="nav-item">@Html.ActionLink("Final Process", "FinalProcess", "Process", New With {.area = ""}, New With {.class = "nav-link"})</li>
+                    <li class="nav-item">@Html.ActionLink("Finished Process", "FinishedProcess", "History", New With {.area = ""}, New With {.class = "nav-link"})</li>
                     @*<li>@Html.ActionLink("Buffer", "Index", "Buffer", New With {.area = ""}, New With {.class = "nav-link"})</li>*@
                 </ul>
 
-                <!-- ⭐ CLOCK DI HUJUNG KANAN -->
-                <span id="navClock" style="
-                    color:#90CAF9;
-                    font-weight:600;
-                    margin-left:20px;
-                    font-size:16px;
-                    text-shadow:0 0 6px rgba(144,202,249,0.8);
-                "></span>
+                <div class="d-flex align-items-center" style="gap:20px;">
+                    <span id="navShift"
+                          style="
+          background:#444;          /* gelap tapi bukan hitam pekat */
+          color:#FFD700;           /* text kuning tapi soft */
+          font-weight:bold;
+          font-size:16px;
+          padding:3px 10px;
+          border-radius:5px;
+          box-shadow:0 0 5px rgba(255,215,0,0.5);
+      ">
+                        @currentShift
+                    </span>
+
+
+                    <span id="navClock"
+                          style="
+             color:#90CAF9;
+             font-weight:600;
+             font-size:18px;
+             letter-spacing: 1px;
+             text-shadow:0 0 6px rgba(144,202,249,0.8);
+          ">
+                        00:00:00
+                    </span>
+                </div>
+
             </div>
         </div>
     </nav>
-    <div id="fullscreenClock" style="
-        display: none;
-        position: fixed;
-        top: 10px;
-        right: 20px;
-
-        color: #1f2937;              /* 🔥 dark slate */
+    <div id="fullscreenInfo" style="
+    display: none;
+    position: fixed;
+    top: 10px;
+    right: 20px;
+    display: flex;
+    gap: 20px; /* jarak antara clock & shift */
+    align-items: center;
+    z-index: 10000;
+">
+        <div id="fullscreenClock" style="
+        color: #1f2937;
         font-weight: 700;
         font-size: 25px;
         letter-spacing: 1.5px;
-
-        background: rgba(255,255,255,0.95); /* light backdrop */
+        background: rgba(255,255,255,0.95);
         padding: 4px 10px;
         border-radius: 6px;
-
-        text-shadow: none;           /* ❌ remove glow */
         box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-
-        z-index: 9999;
         pointer-events: none;
     "></div>
+
+        <div id="fullscreenShift" style="
+        background:#444;
+        color:#FFD700;
+        font-weight:bold;
+        font-size:20px;
+        padding:5px 12px;
+        border-radius:6px;
+        box-shadow:0 0 6px rgba(255,215,0,0.6);
+    ">
+            @currentShift
+        </div>
+    </div>
 
     <div class="container body-content" id="contentWrapper" style="padding-bottom:0;">
         @RenderBody()
@@ -79,7 +159,7 @@
     <!-- WRAPPER -->
     <div id="virtualKeyboard"
          style="display:none; position:fixed; bottom:0; left:0; width:100%;
-            background:#222; padding:15px; z-index:9999; color:white;">
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            background:#222; padding:15px; z-index:9999; color:white;">
 
         <!-- ABC Keyboard -->
         <div id="keyboard-abc" style="display:flex; flex-direction:column; gap:8px; align-items:center;">
@@ -469,7 +549,7 @@
             margin-bottom: 12px;
         }
 
-            .mes-route-table .key {
+            .mes-route-table.key {
                 font-weight: bold;
                 width: 35%;
                 padding-right: 6px;
@@ -487,14 +567,14 @@
             margin: 0 auto;
         }
 
-        .mes-table .status-badge {
+        .mes-table.status-badge {
             padding: 4px 10px;
             border-radius: 12px;
             font-weight: 600;
             font-size: 13px;
         }
 
-        .mes-table .status-progress {
+        .mes-table.status-progress {
             background: #fff3cd;
             color: #856404;
         }
@@ -509,15 +589,15 @@
             color: #856404;
         }
 
-        .mes-table .row-editable {
+        .mes-table.row-editable {
             background-color: #fffef5;
         }
 
-        .mes-table .row-locked {
+        .mes-table.row-locked {
             opacity: 0.75;
         }
 
-        .mes-table .lock-icon {
+        .mes-table.lock-icon {
             font-size: 18px;
         }
 
@@ -783,6 +863,8 @@
         function checkFullscreen() {
             const navbar = document.querySelector('nav.navbar');
             const fsClock = document.getElementById('fullscreenClock');
+            const fsShift = document.getElementById('fullscreenShift'); // ✅
+            const fsInfo = document.getElementById('fullscreenInfo');
             if (!navbar) return;
 
             const isNowFullscreen = window.innerWidth === screen.width && window.innerHeight === screen.height;
@@ -790,13 +872,18 @@
             if (isNowFullscreen) {
                 navbar.style.display = 'none';
                 fsClock.style.display = 'block';
+                fsShift.style.display = 'block'; // ✅ tunjuk shift
+                fsInfo.style.display = 'flex'; // ✅ wrapper
                 document.body.classList.add('is-fullscreen');
             } else {
                 navbar.style.display = 'flex';
+                fsInfo.style.display = 'none';
                 fsClock.style.display = 'none';
+                fsShift.style.display = 'none'; // ✅ sembunyi shift
                 document.body.classList.remove('is-fullscreen');
             }
         }
+
 
         // Jalankan bila DOM siap
         document.addEventListener('DOMContentLoaded', checkFullscreen);

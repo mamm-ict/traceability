@@ -5,6 +5,7 @@ Public Class MaterialLog
     Public Property ProcCode As String
     Public Property PartCode As String
     Public Property LowerMaterial As String
+    Public Property LowerDesc As String
     Public Property BatchLot As String
     Public Property UsageQty As Integer
     Public Property UOM As String

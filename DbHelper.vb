@@ -9,7 +9,32 @@ Public Class DbHelper
         End If
         Return conn.ConnectionString
     End Function
+    Public Shared Function LoadBatch(traceId As String) As Batch
+        Dim batch As Batch = Nothing
 
+        Using conn As New SqlConnection(DbHelper.GetConnectionString("BatchDB"))
+            conn.Open()
+            Dim cmd As New SqlCommand("SELECT * FROM pp_trace_route WHERE trace_id=@TraceID", conn)
+            cmd.Parameters.AddWithValue("@TraceID", traceId)
+            Using reader = cmd.ExecuteReader()
+                If reader.Read() Then
+                    batch = New Batch With {
+                        .TraceID = reader("trace_id").ToString(),
+                        .Die = reader("die").ToString(),
+                        .Line = reader("line").ToString(),
+                        .OperatorID = reader("operator_id").ToString(),
+                        .CreatedDate = Convert.ToDateTime(reader("created_date")),
+                        .Shift = reader("shift").ToString(),
+                        .Model = reader("model_name").ToString(),
+                        .PartCode = reader("part_code").ToString(),
+                        .BaraCoreLot = reader("bara_core_lot").ToString(),
+                        .BaraCoreDate = Convert.ToDateTime(reader("bara_core_date"))
+                    }
+                End If
+            End Using
+        End Using
+        Return batch
+    End Function
     ' Log batch masuk process
     Public Shared Sub LogBatchProcess(
         traceId As String,
@@ -453,10 +478,10 @@ ORDER BY p.proc_code
 
             ' 1️⃣ Ambik level process dari pp_master_process
             Dim cmdLevel As New SqlCommand("
-                SELECT proc_level, material_flag
-                FROM pp_master_process
-                WHERE id = @procId
-            ", conn)
+            SELECT proc_level, material_flag
+            FROM pp_master_process
+            WHERE id = @procId
+        ", conn)
 
             cmdLevel.Parameters.AddWithValue("@procId", procId)
 
@@ -469,21 +494,35 @@ ORDER BY p.proc_code
             ' kalau material_flag = 0, return true terus
             If materialFlag = 0 Then Return True
 
-            ' 2️⃣ Check ada material untuk process ni (level sama atau lebih rendah)
+            ' 2️⃣ Check missing material menggunakan COUNT
             Dim cmdCheck As New SqlCommand("
-                SELECT COUNT(1)
-                FROM pp_trace_material m
-                INNER JOIN pp_master_process p ON m.proc_id = p.id
-                WHERE m.trace_id = @traceId
-                  AND p.proc_level = @level
-            ", conn)
+SELECT COUNT(1)
+FROM pp_master_material mm
+JOIN pp_trace_route tr
+    ON mm.part_code = tr.part_code
+LEFT JOIN pp_trace_material tm
+    ON mm.lower_item = tm.lower_material
+   AND mm.part_code = tm.part_code
+   AND tm.trace_id = @traceId
+   AND tm.proc_id = @procId
+WHERE tr.trace_id = @traceId
+  AND mm.proc_level = @level
+  AND tm.lower_material IS NULL
+
+        ", conn)
 
             cmdCheck.Parameters.AddWithValue("@traceId", traceId)
             cmdCheck.Parameters.AddWithValue("@level", level)
+            cmdCheck.Parameters.AddWithValue("@procId", procId)
 
-            Return Convert.ToInt32(cmdCheck.ExecuteScalar()) > 0
+            ' execute scalar untuk dapatkan count
+            Dim missingCount As Integer = Convert.ToInt32(cmdCheck.ExecuteScalar())
+
+            ' kalau ada missing material, return False (perlu redirect)
+            Return missingCount = 0
         End Using
     End Function
+
     Public Shared Sub RegisterNextProcess(batch As Batch, currentProcess As ProcessMaster, operatorId As String)
         ' Get all processes
         Dim processes = GetAllProcesses()
@@ -930,5 +969,51 @@ ORDER BY p.proc_code
 
         Return yearCode & month & day.ToString("00")
     End Function
+
+    Public Shared Function GetRequiredMaterials(
+      traceId As String,
+      procId As Integer,
+      partCode As String
+  ) As List(Of Dictionary(Of String, String))
+
+        Dim list As New List(Of Dictionary(Of String, String))()
+
+        Using conn As New SqlConnection(GetConnectionString("BatchDB"))
+            conn.Open()
+
+            Dim procLevelCmd As New SqlCommand("
+            SELECT proc_level 
+            FROM pp_master_process
+            WHERE id = @ProcID
+        ", conn)
+
+            procLevelCmd.Parameters.AddWithValue("@ProcID", procId)
+            Dim procLevel = procLevelCmd.ExecuteScalar()?.ToString()
+            If String.IsNullOrEmpty(procLevel) Then Return list
+
+            Dim cmd As New SqlCommand("
+            SELECT DISTINCT lower_item, lower_desc
+            FROM pp_master_material
+            WHERE part_code = @PartCode
+              AND proc_level = @ProcLevel
+            ORDER BY lower_item
+        ", conn)
+
+            cmd.Parameters.AddWithValue("@PartCode", partCode)
+            cmd.Parameters.AddWithValue("@ProcLevel", procLevel)
+
+            Using reader = cmd.ExecuteReader()
+                While reader.Read()
+                    list.Add(New Dictionary(Of String, String) From {
+                        {"lowerItem", reader("lower_item").ToString()},
+                        {"lowerDesc", reader("lower_desc").ToString()}
+                    })
+                End While
+            End Using
+        End Using
+
+        Return list
+    End Function
+
 
 End Class

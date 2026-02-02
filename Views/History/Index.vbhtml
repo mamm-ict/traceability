@@ -44,7 +44,7 @@ End Code
                             <th>Date</th>
                             <th> Shift</th>
                             <th> Model</th>
-                            <th> Line</th>
+                            <th> Die Core</th>
                             <th> Operator</th>
                             <th>QR Code</th>
                         </tr>
@@ -62,7 +62,7 @@ End Code
                                 <td>@batch("CreatedDate")</td>
                                 <td>@batch("Shift")</td>
                                 <td>@batch("Model")</td>
-                                <td>@batch("Line")</td>
+                                <td>@batch("Die") @batch("Line")</td>
                                 <td>@batch("OperatorID")</td>
                                 <td>
                                     <img src="data:image/png;base64,@batch("QRCodeImage")"
@@ -132,4 +132,17 @@ End Code
     .group-table {
         margin-bottom: 20px;
     }
+
+        .group-table td, .group-table th {
+            white-space: normal; /* allow wrap */
+            word-break: break-word; /* long text wrap */
+            vertical-align: middle;
+        }
+
+    .qr-img {
+        width: 50px; /* kecilkan ikut mobile */
+        height: 50px;
+        
+    }
+
 </style>
