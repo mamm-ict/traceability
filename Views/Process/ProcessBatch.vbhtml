@@ -157,11 +157,11 @@ End Code
 </style>
 
 <script>
-    let countdown = 200;
+    let countdown = 20;
     const timerDisplay = document.getElementById("timer");
 
     function startTimer() {
-        countdown = 200;
+        countdown = 20;
         timerDisplay.textContent = countdown;
 
         const interval = setInterval(() => {

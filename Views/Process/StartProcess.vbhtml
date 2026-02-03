@@ -139,7 +139,7 @@ End Code
         }
 
         // Scan CONTROL_NO (contoh: 10 digit)
-        if (/^\d{10}$/.test(val)) {
+        if (/^\d{4}$/.test(val)) {
             const url = '@Url.Action("GetTraceIDByControlNo", "Process")';
             fetch(url, {
                 method: 'POST',

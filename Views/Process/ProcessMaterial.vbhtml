@@ -21,10 +21,10 @@
     If lastLog IsNot Nothing AndAlso lastLog.Status = "In Progress" Then
         activeProcessId = lastLog.ProcessID
     End If
-
+    Dim activeProc = processes.FirstOrDefault(Function(p) p.ID = activeProcessId.Value)
     Dim currentProcessName As String = "N/A"
     If activeProcessId.HasValue Then
-        Dim activeProc = processes.FirstOrDefault(Function(p) p.ID = activeProcessId.Value)
+
 
         If activeProc IsNot Nothing Then
             currentProcessName = activeProc.Name
@@ -82,7 +82,7 @@ End Code
             </h4>
 
             <h3 class="mes-card-subtitle" style="margin-bottom:16px;">
-                Raw Materials
+                Raw Materials for @activeProc.Name
             </h3>
 
             <!-- hidden context -->

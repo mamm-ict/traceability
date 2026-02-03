@@ -694,7 +694,8 @@ WHERE tr.trace_id = @traceId
                     UPDATE pp_trace_route
                     SET current_qty = @CurQty,
                         status = 'COMPLETED',
-                        update_date = @Today
+                        update_date = @Today,
+                        printed_date = @Today
                     WHERE trace_id = @TraceID
                 ", conn)
                 cmd2.Parameters.AddWithValue("@Today", today)

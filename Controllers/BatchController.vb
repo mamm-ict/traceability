@@ -247,7 +247,7 @@ Public Class BatchController
         Dim data = Newtonsoft.Json.JsonConvert.DeserializeObject(Of Dictionary(Of String, String))(jsonString)
         Dim controlNo As String = data("controlNo")
 
-        Using conn As New SqlConnection(DbHelper.GetConnectionString("EmpDB2"))
+        Using conn As New SqlConnection(DbHelper.GetConnectionString("EmpDB"))
             conn.Open()
             Dim cmd As New SqlCommand("
             SELECT EMPLOYEE_NO
@@ -281,7 +281,7 @@ Public Class BatchController
             Return Json(New With {.success = False, .message = "Control number cannot be empty!"})
         End If
 
-        If controlNo.Length <> 10 Then
+        If controlNo.Length <> 4 Then
             Return Json(New With {.success = False, .message = "Control number invalid!"})
         End If
 

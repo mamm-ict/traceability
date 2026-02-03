@@ -262,7 +262,7 @@ Public Class ProcessController
         Dim data = Newtonsoft.Json.JsonConvert.DeserializeObject(Of Dictionary(Of String, String))(jsonString)
         Dim controlNo As String = data("controlNo")
 
-        Using conn As New SqlConnection(DbHelper.GetConnectionString("EmpDB2"))
+        Using conn As New SqlConnection(DbHelper.GetConnectionString("EmpDB"))
             conn.Open()
             Dim cmd As New SqlCommand("
                 SELECT EMPLOYEE_NO
@@ -768,6 +768,7 @@ Public Class ProcessController
                     process("ProcessName") = reader("proc_name").ToString()
                     process("ProcessLevel") = reader("proc_level").ToString()
                     process("ProcFlowId") = reader("proc_flow_id").ToString()
+                    process("ControlNo") = reader("control_no").ToString()
 
                     Dim qrData As String = reader("proc_code").ToString()
 
@@ -858,6 +859,58 @@ Public Class ProcessController
             New With {.traceId = traceId, .procId = procId}
         )
 
+    End Function
+    <HttpPost>
+    Public Function UpdateProcess(processId As Integer, processName As String, processCode As String,
+                              procFlowId As String, processLevel As Integer, controlNo As String) As ActionResult
+
+        ' ✅ Validate first
+        If String.IsNullOrWhiteSpace(controlNo) OrElse controlNo.Length <> 10 Then
+            TempData("ErrorMessage") = "Control number invalid! Must be exactly 10 digits."
+            Return RedirectToAction("Detail", New With {.processId = processId})
+        End If
+
+
+
+        Try
+            Using conn As New SqlConnection(DbHelper.GetConnectionString("BatchDB"))
+                conn.Open()
+
+                Dim cmdCheck As New SqlCommand("SELECT control_no FROM pp_master_process WHERE control_no = @ControlNo AND id NOT LIKE @ProcessID", conn)
+                cmdCheck.Parameters.AddWithValue("@ControlNo", controlNo)
+                cmdCheck.Parameters.AddWithValue("@ProcessID", processId)
+                Dim exist As String = cmdCheck.ExecuteScalar()
+                If exist IsNot Nothing Then
+                    TempData("ErrorMessage") = "Control number already in use! Try another card."
+                    Return RedirectToAction("Detail", New With {.processId = processId})
+                End If
+
+                Dim cmd As New SqlCommand("
+                UPDATE pp_master_process
+                SET proc_name = @Name,
+                    proc_code = @Code,
+                    proc_flow_id = @FlowId,
+                    proc_level = @Level,
+                    control_no = @ControlNo
+                WHERE id = @ID
+            ", conn)
+
+                cmd.Parameters.AddWithValue("@ID", processId)
+                cmd.Parameters.AddWithValue("@Name", processName)
+                cmd.Parameters.AddWithValue("@Code", processCode)
+                cmd.Parameters.AddWithValue("@FlowId", procFlowId)
+                cmd.Parameters.AddWithValue("@Level", processLevel)
+                cmd.Parameters.AddWithValue("@ControlNo", controlNo)
+
+                cmd.ExecuteNonQuery()
+            End Using
+
+            TempData("SuccessMessage") = "Process updated successfully."
+            Return RedirectToAction("Detail", New With {.processId = processId})
+        Catch ex As Exception
+            TempData("ErrorMessage") = "Failed to update process: " & ex.Message
+            Return RedirectToAction("Detail", New With {.processId = processId})
+        End Try
     End Function
 
 End Class

@@ -31,6 +31,10 @@ End Code
 
 <div class="mes-container">
     <div class="mes-panel">
+        @If groupedBatches Is Nothing OrElse Not groupedBatches.Any() Then
+            @<p style="padding: 20px; text-align: center; color: gray;">No history of process.</p>
+        End If
+
         @For Each group In groupedBatches
             @<div class="date-group">
                 <h3 class="date-header" onclick="toggleGroup(this)">

@@ -42,7 +42,8 @@ End Code
     }
 
     .accordion-header {
-        background: #f5f5f5;
+        background: #2b4c7e;
+        color:white;
         padding: 12px 16px;
         cursor: pointer;
         font-weight: 600;
@@ -54,6 +55,7 @@ End Code
 
         .accordion-header:hover {
             background: #e0e0e0;
+            color: black;
         }
 
         .accordion-header::after {
@@ -298,60 +300,66 @@ End Code
     }
 
     @@media (max-width: 768px) {
-    .mes-table {
-        display: block;
-        overflow-x: auto;
-        width: 100%;
-    }
+        .mes-table {
+            display: block;
+            overflow-x: auto;
+            width: 100%;
+        }
 
-    .mes-table th,
-    .mes-table td {
-        white-space: normal;
-        word-break: break-word;
+            .mes-table th,
+            .mes-table td {
+                white-space: normal;
+                word-break: break-word;
+            }
     }
-}
-
 </style>
 <h1 class="mes-title">
     Completed Batches
 </h1>
-
-<div class="accordion">
-    @For Each partKvp In grouped
-        @<div class="accordion-item">
-            <div class="accordion-header" onclick="toggleAccordion(this)">
-                @partKvp.Key
-            </div>
-            <div class="accordion-body">
-                <table class="mes-table">
-                    <thead>
-                        <tr>
-                            <th> Trace ID</th>
-                            <th> Model</th>
-                            <th> Quantity</th>
-                            <th> Time </th>
-                            <th> Last Print </th>
-                            <th> Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @For Each row In partKvp.Value
-                            @<tr>
-                                <td>@row("TraceID")</td>
-                                <td>@row("ModelName")</td>
-                                <td>@row("CurQty")</td>
-                                <td>@row("UpdateDate")</td>
-                                <td>@row("PrintedDate")</td>
-                                <td>
-                                    <button class="mes-btn-pdf" data-traceid="@row("TraceID")"> <img src="~/file-pdf-solid-full (1).svg" /> PDF</button>
-                                </td>
-                            </tr>
-                        Next
-                    </tbody>
-                </table>
-            </div>
+<div class="mes-container">
+    <div class="mes-panel">
+        <div class="accordion">
+            @If grouped Is Nothing OrElse Not grouped.Any() Then
+                @<p style="padding: 20px; text-align: center; color: gray;">No history of completed batches.</p>
+            End If
+            @For Each partKvp In grouped
+                @<div class="accordion-item mes-table group-table">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        @partKvp.Key
+                    </div>
+                    <div class="accordion-body">
+                        <table class="mes-table">
+                            <thead>
+                                <tr>
+                                    <th> Trace ID</th>
+                                    <th> Model</th>
+                                    <th> Quantity</th>
+                                    <th> Time </th>
+                                    <th> Last Print </th>
+                                    <th> Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @For Each row In partKvp.Value
+                                    @<tr>
+                                        <td>@row("TraceID")</td>
+                                        <td>@row("ModelName")</td>
+                                        <td>@row("CurQty")</td>
+                                        <td>@row("UpdateDate")</td>
+                                        <td>@row("PrintedDate")</td>
+                                        <td>
+                                            <button class="mes-btn-pdf" data-traceid="@row("TraceID")"> <img src="~/file-pdf-solid-full (1).svg" /> PDF</button>
+                                        </td>
+                                    </tr>
+                                Next
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            Next
         </div>
-    Next
+
+    </div>
 </div>
 
 
@@ -414,7 +422,15 @@ End Code
                     modalLink.textContent = "Open existing PDF";
                     pdfModal.style.display = "flex";
                 } else {
-                    window.open(`/Process/DownloadTracePdf?traceId=${traceId}`, "_blank");
+                    const newWin = window.open(`/Process/DownloadTracePdf?traceId=${traceId}`, "_blank");
+
+                    // listen tab close, baru reload page
+                    const interval = setInterval(() => {
+                        if (newWin.closed) {
+                            clearInterval(interval);
+                            location.reload(); // refresh page bila tab PDF ditutup
+                        }
+                    }, 500);
                 }
             });
     });
@@ -422,8 +438,16 @@ End Code
     // Download again generates new PDF
     btnDownloadAgain.onclick = () => {
         if (!currentTraceId) return;
-        window.open(`/Process/DownloadTracePdf?traceId=${currentTraceId}&forceNew=true`, "_blank");
+        const newWin = window.open(`/Process/DownloadTracePdf?traceId=${currentTraceId}&forceNew=true`, "_blank");
         pdfModal.style.display = "none";
+
+        // listen tab close, baru reload page
+        const interval = setInterval(() => {
+            if (newWin.closed) {
+                clearInterval(interval);
+                location.reload(); // refresh page bila tab PDF ditutup
+            }
+        }, 500);
     };
 
     // Close modal
