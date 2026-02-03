@@ -197,6 +197,7 @@ End If
         padding: 12px 16px;
         border-radius: 6px;
         margin-bottom: 16px;
+        margin-top:20px;
     }
 
     .mes-title {
@@ -205,7 +206,7 @@ End If
     }
 
     .trace-id {
-        font-size: 0.9rem;
+        font-size: 1.0rem;
         color: #666;
         margin-left: 8px;
     }
@@ -331,7 +332,6 @@ End If
         background: #e8eef7;
         padding: 4px 10px;
         border-radius: 14px;
-        font-size: 0.75rem;
         font-weight: 500;
         color: #3a4b6d;
     }
