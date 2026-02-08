@@ -274,7 +274,7 @@ Public Class BatchController
 
         Dim data = Newtonsoft.Json.JsonConvert.DeserializeObject(Of Dictionary(Of String, String))(jsonString)
         Dim traceID = data("traceID")
-        Dim controlNo = data("controlNo").Trim() ' Trim whitespace
+        Dim controlNo = DbHelper.ReadControlNo(data("controlNo"))
 
         ' 1. Validate non-empty
         If String.IsNullOrEmpty(controlNo) Then

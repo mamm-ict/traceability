@@ -139,7 +139,7 @@ End Code
         }
 
         // Scan CONTROL_NO (contoh: 10 digit)
-        if (/^\d{4}$/.test(val)) {
+        //if (/^\d{16}$/.test(val)) {
             const url = '@Url.Action("GetTraceIDByControlNo", "Process")';
             fetch(url, {
                 method: 'POST',
@@ -157,12 +157,12 @@ End Code
                 }
             });
             return;
-        }
+        //}
 
         // CASE 3: format salah
-        alert("Invalid Route Card");
-        this.value = "";
-        this.focus();
+        //alert("Invalid Route Card");
+        //this.value = "";
+        //this.focus();
     });
 
     //Operator ID scanning
@@ -220,12 +220,12 @@ End Code
                 return;
             }
 
-            if (!/^\d{10}$/.test(val)) {
-                alert("Invalid Process Card");
-                this.value = "";
-                this.focus();
-                return;
-            }
+            //if (!/^\d{10}$/.test(val)) {
+            //    alert("Invalid Process Card");
+            //    this.value = "";
+            //    this.focus();
+            //    return;
+            //}
 
             fetch('/Process/GetProcessByControlNo', {
                 method: 'POST',
@@ -238,7 +238,7 @@ End Code
                         this.value = data.processCode;
 
                         // AUTO SUBMIT
-                        form.submit();
+                        //form.submit();
                     } else {
                         alert(data.message);
                         this.value = "";

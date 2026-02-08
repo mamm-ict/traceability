@@ -1016,5 +1016,22 @@ WHERE tr.trace_id = @traceId
         Return list
     End Function
 
+    Public Shared Function ReadControlNo(controlNo As String) As String
+        If String.IsNullOrWhiteSpace(controlNo) Then
+            Return ""
+        End If
+
+        Dim normalized As String = controlNo.Trim()
+
+        ' Ambil first 10 digit jika lebih panjang
+        If normalized.Length > 10 Then
+            normalized = normalized.Substring(0, 10)
+        End If
+
+        ' Buang leading zero
+        normalized = normalized.TrimStart("0"c)
+
+        Return normalized
+    End Function
 
 End Class
