@@ -437,12 +437,17 @@ ORDER BY p.proc_code
             conn.Open()
 
             Dim cmd As New SqlCommand("
-                SELECT *
-                FROM pp_trace_material
-                WHERE trace_id = @TraceID
-                AND proc_id = @ProcID
-                AND part_code = @PartCode
-                ORDER BY created_date
+                SELECT t.*, m.lower_desc, p.proc_code
+            FROM pp_trace_material t
+            LEFT JOIN pp_master_material m
+                ON t.lower_material = m.lower_item
+               AND t.part_code = m.part_code
+            LEFT JOIN pp_master_process p
+                ON t.proc_id = p.id
+            WHERE t.trace_id = @TraceID
+              AND t.proc_id = @ProcID
+              AND t.part_code = @PartCode
+            ORDER BY t.created_date
             ", conn)
 
             cmd.Parameters.AddWithValue("@TraceID", traceId)
@@ -457,6 +462,7 @@ ORDER BY p.proc_code
                         .ProcID = Convert.ToInt32(reader("proc_id")),
                         .PartCode = reader("part_code").ToString(),
                         .LowerMaterial = reader("lower_material").ToString(),
+                        .LowerDesc = reader("lower_desc").ToString(),
                         .BatchLot = reader("batch_lot").ToString(),
                         .UsageQty = Convert.ToInt64(reader("usage_qty")),
                         .UOM = reader("uom").ToString(),

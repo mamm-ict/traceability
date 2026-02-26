@@ -238,31 +238,36 @@ Public Class BatchController
     End Function
 
     <HttpPost>
-    Public Function GetEmployeeByControlNo() As JsonResult
-        Dim jsonString As String
-        Using reader = New System.IO.StreamReader(Request.InputStream)
-            jsonString = reader.ReadToEnd()
-        End Using
+    Public Function GetEmployeeByControlNo() As ActionResult
+        Try
+            Dim jsonString As String
+            Using reader = New System.IO.StreamReader(Request.InputStream)
+                jsonString = reader.ReadToEnd()
+            End Using
 
-        Dim data = Newtonsoft.Json.JsonConvert.DeserializeObject(Of Dictionary(Of String, String))(jsonString)
-        Dim controlNo As String = data("controlNo")
+            Dim data = Newtonsoft.Json.JsonConvert.DeserializeObject(Of Dictionary(Of String, String))(jsonString)
+            Dim controlNo As String = data("controlNo")
 
-        Using conn As New SqlConnection(DbHelper.GetConnectionString("EmpDB"))
-            conn.Open()
-            Dim cmd As New SqlCommand("
-            SELECT EMPLOYEE_NO
-            FROM ZPA_EMPLOYEE
-            WHERE CONTROL_NO = @ControlNo
-              AND EMP_STATUS = 'A'
-        ", conn)
-            cmd.Parameters.AddWithValue("@ControlNo", controlNo)
-            Dim empNo = cmd.ExecuteScalar()
-            If empNo Is Nothing Then
-                Return Json(New With {.success = False, .message = "Employee not found or inactive"})
-            End If
-            Return Json(New With {.success = True, .employeeNo = empNo.ToString()})
-        End Using
+            Using conn As New SqlConnection(DbHelper.GetConnectionString("BatchDB"))
+                conn.Open()
+                Dim cmd As New SqlCommand("
+                SELECT EMPLOYEE_NO
+                FROM ZPA_EMPLOYEE
+                WHERE CONTROL_NO = @ControlNo
+                  AND EMP_STATUS = 'A'
+            ", conn)
+                cmd.Parameters.AddWithValue("@ControlNo", controlNo)
+                Dim empNo = cmd.ExecuteScalar()
+                If empNo Is Nothing Then
+                    Return Json(New With {.success = False, .message = "Employee not found or inactive"})
+                End If
+                Return Json(New With {.success = True, .employeeNo = empNo.ToString()})
+            End Using
+        Catch ex As Exception
+            Return Json(New With {.success = False, .message = ex.Message})
+        End Try
     End Function
+
 
     <HttpPost>
     Public Function AddControlNo() As JsonResult

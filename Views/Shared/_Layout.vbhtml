@@ -53,6 +53,7 @@ End Code
     <title>@ViewBag.Title</title>
     @Styles.Render("~/Content/css")
     @Scripts.Render("~/bundles/modernizr")
+    <link rel="icon" type="image/x-icon" href="~/favicon.ico" />
 </head>
 
 <body>
@@ -277,72 +278,50 @@ End Code
             </div>
         </div>
     </div>
-
     <style>
-        /* Make keyboard responsive (scale down on small screens) */
-        #virtualKeyboard {
-            display: none;
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background: #222;
-            padding: 10px;
-            z-index: 9999;
-            color: white;
-            transform-origin: bottom center;
-        }
+/* ===== Body & Global ===== */
+body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background-color: #f4f7fc;
+    color: #0f2443;
+}
 
-        /* Default button size */
-        .vk-btn {
-            font-size: 16px;
-            padding: 8px;
-            min-width: 40px;
-            border-radius: 6px;
-            border: 1px solid #666;
-            background: white;
-            cursor: pointer;
-        }
+/* ============================= */
+/* Virtual Keyboard */
+#virtualKeyboard {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: #222;
+    padding: 10px;
+    z-index: 9999;
+    color: white;
+    transform-origin: bottom center;
+}
 
-        /* Scale keyboard for small notebook screens */
-        @@media (max-width: 1200px) {
-            #virtualKeyboard {
-                transform: scale(0.95);
-            }
-        }
+.vk-btn {
+    font-size: 16px;
+    padding: 8px;
+    min-width: 40px;
+    border-radius: 6px;
+    border: 1px solid #666;
+    background: white;
+    cursor: pointer;
+}
 
-        @@media (max-width: 1000px) {
-            #virtualKeyboard {
-                transform: scale(0.85);
-            }
-        }
+/* Keyboard scale by screen width */
+@@media (max-width: 1200px) { #virtualKeyboard { transform: scale(0.95); } }
+@@media (max-width: 1000px) { #virtualKeyboard { transform: scale(0.85); } }
+@@media (max-width: 850px)  { #virtualKeyboard { transform: scale(0.75); } }
+@@media (max-width: 700px)  { #virtualKeyboard { transform: scale(0.65); } }
+@@media (max-width: 600px)  { #virtualKeyboard { transform: scale(0.55); } }
 
-        @@media (max-width: 850px) {
-            #virtualKeyboard {
-                transform: scale(0.75);
-            }
-        }
-
-        @@media (max-width: 700px) {
-            #virtualKeyboard {
-                transform: scale(0.65);
-            }
-        }
-
-        @@media (max-width: 600px) {
-            #virtualKeyboard {
-                transform: scale(0.55);
-            }
-        }
-
-        /* Extra compact mode for really small height screens */
-        @@media (max-height: 450px) {
-            .vk-btn {
-                font-size: 14px;
-                padding: 6px;
-                min-width: 32px;
-            }
-        }
+/* Extra compact mode for really small height screens */
+@@media (max-height: 450px) {
+    .vk-btn { font-size: 14px; padding: 6px; min-width: 32px; }
+}
 
         @@media (max-width: 1500px) {
             #virtualKeyboard {
@@ -374,59 +353,60 @@ End Code
             }
         }
 
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background: #f4f7fc;
-            color: #0f2443;
-        }
+/* ============================= */
+/* MES Page Base Styles */
+.mes-title {
+    text-align: center;
+    font-size: clamp(26px, 4vw, 50px);
+    font-weight: 800;
+    color: #2b4c7e;
+    text-transform: uppercase;
+}
 
-        .mes-title {
-            text-align: center;
-            font-size: clamp(26px, 4vw, 34px);
-            font-weight: 800;
-            color: #2b4c7e;
-            text-transform: uppercase;
-        }
+.mes-container { width: 100%; padding: 18px; }
 
-        .mes-container {
-            width: 100%;
-            padding: 18px;
-        }
-
-        .mes-panel {
+        .mes-panel, .mes-process-card, .mes-route-card {
             background: #f4f4f4;
             border: 3px solid #2b4c7e;
-            border-radius: 6px;
-            padding: 20px;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            margin: 20px auto;
         }
 
-        .mes-table {
-            width: 100%;
-            border-collapse: collapse;
-            background: #ffffff;
-            border: 3px solid #2b4c7e;
+/* Table & QR */
+.mes-table, .mes-route-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border: 3px solid #2b4c7e;
+    font-size: 1em;
+}
+
+        .mes-table th {
+            background: #2b4c7e;
+            color: white;
+            padding: 12px;
+            font-size: 16px;
+            border-bottom: 3px solid #1e355a;
+            text-transform: uppercase;
+            text-align: center;
+            vertical-align: middle;
         }
 
-            .mes-table th {
-                background: #2b4c7e;
-                color: white;
-                padding: 12px;
-                font-size: 16px;
-                border-bottom: 3px solid #1e355a;
-                text-transform: uppercase;
-            }
+        .mes-table td {
+            padding: 10px;
+            border-bottom: 2px solid #d0d0d0;
+            font-size: 15px;
+            font-weight: 600;
+            color: #333;
+            text-align: center;
+            vertical-align: middle;
+        }
+        .mes-table tr:hover {
+            background: #e8f1ff;
+        }
 
-            .mes-table td {
-                padding: 10px;
-                border-bottom: 2px solid #d0d0d0;
-                font-size: 15px;
-                font-weight: 600;
-                color: #333;
-            }
-
-            .mes-table tr:hover {
-                background: #e8f1ff;
-            }
 
         .mes-link {
             color: #1a73e8;
@@ -495,201 +475,329 @@ End Code
             box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         }
 
-        /* Title dalam card */
-        .mes-card-title {
-            font-size: 26px;
-            font-weight: 700;
-            margin-bottom: 15px;
-            letter-spacing: 0.5px;
-        }
+/* ============================= */
+/* FULLSCREEN NATURAL SCALE */
+body.is-fullscreen {
+    height: 100vh;
+    overflow-y: auto;
+    font-size: clamp(22px, 2.5vw, 36px);
+    line-height: 1.6;
+    padding: 0; margin: 0;
+}
 
-        /* QR besar */
-        .mes-qr-large {
-            max-width: 260px;
-            margin-top: 10px;
-            margin-bottom: 10px;
-            display: block;
-            margin-left: auto;
-            margin-right: auto;
-        }
+body.is-fullscreen #contentWrapper {
+    width: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
 
-        /* Center wrapper */
-        .mes-route-wrapper {
-            width: 100%;
-            display: flex;
-            justify-content: center;
-            margin-top: 40px;
-        }
+body.is-fullscreen .mes-title {
+    font-size: clamp(40px, 5vw, 65px);
+}
 
-        /* Route card box */
-        .mes-route-card {
-            width: 350px;
-            padding: 14px 16px;
-            border: 1.5px solid #000;
-            border-radius: 10px;
-            background: white;
-            font-family: Arial, sans-serif;
-            font-size: 12px;
-        }
+body.is-fullscreen .mes-panel,
+body.is-fullscreen .mes-process-card,
+body.is-fullscreen .mes-route-card {
+    width: 100%;
+    max-width: 1400px;
+    padding: clamp(25px, 3vw, 40px);
+    font-size: clamp(1em, 1.2vw, 1.4em);
+}
 
-        /* Title */
-        .mes-route-title {
-            text-align: center;
-            margin: 0 0 12px 0;
-            font-size: 22px;
-            font-weight: bold;
-            letter-spacing: 1px;
-        }
+body.is-fullscreen input.vk-input { font-size: 20px; padding: 10px; }
+body.is-fullscreen .vk-btn { font-size: 18px; padding: 10px 14px; }
+body.is-fullscreen .mes-tick-btn { width: 45px; height: 45px; font-size: 22px; }
 
-        /* Table styling */
-        .mes-route-table {
-            width: 100%;
-            font-size: 12px;
-            border-collapse: collapse;
-            margin-bottom: 12px;
-        }
+body.is-fullscreen .qr-img { width: 90px; height: 90px; }
+body.is-fullscreen .mes-qr-large { max-width: 350px; }
+body.is-fullscreen .mes-route-qr-img { width: 180px; height: 180px; }
 
-            .mes-route-table.key {
-                font-weight: bold;
-                width: 35%;
-                padding-right: 6px;
-            }
+body.is-fullscreen .mes-container { padding: 60px 80px; }
 
-        /* QR */
-        .mes-route-qr {
-            text-align: center;
-        }
-
-        .mes-route-qr-img {
-            width: 150px;
-            height: 150px;
-            display: block;
-            margin: 0 auto;
-        }
-
-        .mes-table.status-badge {
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 13px;
-        }
-
-        .mes-table.status-progress {
-            background: #fff3cd;
-            color: #856404;
-        }
-
-        .mes-table .status-done {
-            background: #e6f4ea;
-            color: #1e7e34;
-        }
-
-        .status-pending {
-            background: #fff3cd;
-            color: #856404;
-        }
-
-        .mes-table.row-editable {
-            background-color: #fffef5;
-        }
-
-        .mes-table.row-locked {
-            opacity: 0.75;
-        }
-
-        .mes-table.lock-icon {
-            font-size: 18px;
-        }
-
-        .mes-table input.vk-input {
-            font-size: 18px;
-            padding: 6px;
-        }
-
-        .mes-table th,
-        .mes-table td {
-            text-align: center;
-            vertical-align: middle;
-        }
-
-        .mes-left {
-            text-align: left !important;
-            padding-left: 16px;
-        }
-
-        .mes-tick-btn {
-            background: #2ecc71;
-            color: #fff;
-            border: none;
-            border-radius: 20%;
-            width: 34px;
-            height: 34px;
-            font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-            .mes-tick-btn:active {
-                transform: scale(0.95);
-            }
-
-        .done-icon {
-            color: #2ecc71;
-            font-size: 18px;
-        }
-
-        .mes-tick-btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-
-        nav.navbar.fullscreen-hidden {
-            display: none !important;
-        }
-
-        body.is-fullscreen {
-            height: 100vh;
-            overflow-y: auto; /* scrollable */
-            display: block; /* jangan flex lagi */
-            padding: 0;
-            margin: 0;
-        }
-
-            /* Make wrapper expand to content but still center smaller content */
-            body.is-fullscreen #contentWrapper {
-                max-width: 1400px; /* sesuai MES page */
-                width: 100%;
-                margin: 0 auto; /* horizontal center */
-                padding: 20px;
-            }
-
-        @@media (min-height: 800px) {
-            body.is-fullscreen #contentWrapper {
-                display: flex;
-                flex-direction: column;
-                justify-content: center; /* vertical center bila tinggi screen > content */
-            }
-        }
-
-        /* MES pages wrapper */
-        body.is-fullscreen .mes-container {
-            width: 100%;
-            max-width: 1400px;
-            margin: auto;
-        }
-
-        /* Small cards stay compact */
-        body.is-fullscreen .mes-process-card,
-        body.is-fullscreen .mes-route-card {
-            max-width: 100%;
-            margin: 20px auto; /* keep spacing */
-        }
-
-        /* Optional: force text-align center for smaller content inside wrapper */
-        body.is-fullscreen #contentWrapper > * {
-            text-align: center;
-        }
+       @@font-face {
+        font-family: 'Poppins';
+        src: url('/Content/Poppins-Regular.ttf') format('truetype');
+        font-weight: 400;
+        font-style: normal;
+    }
+    @@font-face {
+        font-family: 'Poppins';
+        src: url('/Content/Poppins-Bold.ttf') format('truetype');
+        font-weight: 700;
+        font-style: normal;
+    }
+    @@font-face {
+        font-family: 'Poppins';
+        src: url('/Content/Poppins-ExtraBold.ttf') format('truetype');
+        font-weight: 800;
+        font-style: normal;
+    }
     </style>
+    @*<style>
+
+           
+            /* Title dalam card */
+            .mes-card-title {
+                font-size: 26px;
+                font-weight: 700;
+                margin-bottom: 15px;
+                letter-spacing: 0.5px;
+            }
+
+            /* QR besar */
+            .mes-qr-large {
+                max-width: 260px;
+                margin-top: 10px;
+                margin-bottom: 10px;
+                display: block;
+                margin-left: auto;
+                margin-right: auto;
+            }
+
+            /* Center wrapper */
+            .mes-route-wrapper {
+                width: 100%;
+                display: flex;
+                justify-content: center;
+                margin-top: 40px;
+            }
+
+            /* Route card box */
+            .mes-route-card {
+                width: 350px;
+                padding: 14px 16px;
+                border: 1.5px solid #000;
+                border-radius: 10px;
+                background: white;
+                font-family: Arial, sans-serif;
+                font-size: 12px;
+            }
+
+            /* Title */
+            .mes-route-title {
+                text-align: center;
+                margin: 0 0 12px 0;
+                font-size: 22px;
+                font-weight: bold;
+                letter-spacing: 1px;
+            }
+
+            /* Table styling */
+            .mes-route-table {
+                width: 100%;
+                font-size: 12px;
+                border-collapse: collapse;
+                margin-bottom: 12px;
+            }
+
+                .mes-route-table.key {
+                    font-weight: bold;
+                    width: 35%;
+                    padding-right: 6px;
+                }
+
+            /* QR */
+            .mes-route-qr {
+                text-align: center;
+            }
+
+            .mes-route-qr-img {
+                width: 150px;
+                height: 150px;
+                display: block;
+                margin: 0 auto;
+            }
+
+            .mes-table.status-badge {
+                padding: 4px 10px;
+                border-radius: 12px;
+                font-weight: 600;
+                font-size: 13px;
+            }
+
+            .mes-table.status-progress {
+                background: #fff3cd;
+                color: #856404;
+            }
+
+            .mes-table .status-done {
+                background: #e6f4ea;
+                color: #1e7e34;
+            }
+
+            .status-pending {
+                background: #fff3cd;
+                color: #856404;
+            }
+
+            .mes-table.row-editable {
+                background-color: #fffef5;
+            }
+
+            .mes-table.row-locked {
+                opacity: 0.75;
+            }
+
+            .mes-table.lock-icon {
+                font-size: 18px;
+            }
+
+            .mes-table input.vk-input {
+                font-size: 18px;
+                padding: 6px;
+            }
+
+            .mes-table th,
+            .mes-table td {
+                text-align: center;
+                vertical-align: middle;
+            }
+
+            .mes-left {
+                text-align: left !important;
+                padding-left: 16px;
+            }
+
+            .mes-tick-btn {
+                background: #2ecc71;
+                color: #fff;
+                border: none;
+                border-radius: 20%;
+                width: 34px;
+                height: 34px;
+                font-size: 18px;
+                font-weight: bold;
+                cursor: pointer;
+            }
+
+                .mes-tick-btn:active {
+                    transform: scale(0.95);
+                }
+
+            .done-icon {
+                color: #2ecc71;
+                font-size: 18px;
+            }
+
+            .mes-tick-btn:disabled {
+                background: #ccc;
+                cursor: not-allowed;
+            }
+
+            nav.navbar.fullscreen-hidden {
+                display: none !important;
+            }
+
+            body.is-fullscreen {
+                height: 100vh;
+                overflow-y: auto;
+                font-size: clamp(28px, 3vw, 48px); /* teks besar untuk older eyes */
+                line-height: 1.6;
+                padding: 0;
+                margin: 0;
+            }
+
+                body.is-fullscreen #contentWrapper {
+                    max-width: none;
+                    width: 100%;
+                    margin: 0 auto;
+                    padding: 20px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center; /* center smaller content */
+                    text-align: center; /* semua teks center supaya mudah baca */
+                }
+
+            @@media (min-height: 800px) {
+                body.is-fullscreen #contentWrapper {
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center; /* vertical center bila tinggi screen > content */
+                }
+            }
+            body.is-fullscreen .mes-panel,
+            body.is-fullscreen .mes-process-card,
+            body.is-fullscreen .mes-route-card {
+                width: 100%;
+                max-width: 1400px;
+                margin: 20px auto;
+                padding: 30px;
+                border-radius: 12px;
+                font-size: 1.4em; /* lebih besar dari normal */
+            }
+
+            body.is-fullscreen .mes-title {
+                font-size: clamp(48px, 6vw, 72px);
+            }
+            /* MES pages wrapper */
+            body.is-fullscreen .mes-container {
+                width: 100%;
+                max-width: 1400px;
+                margin: auto;
+            }
+
+            /* Optional: force text-align center for smaller content inside wrapper */
+            body.is-fullscreen #contentWrapper > * {
+                text-align: center;
+            }
+
+            /* ============================= */
+            /* FULLSCREEN MES PAGE FIX       */
+            /* ============================= */
+            body.is-fullscreen {
+                height: 100vh;
+                overflow-y: auto;
+                display: block;
+                padding: 0;
+                margin: 0;
+            }
+
+                /* content wrapper full width */
+                body.is-fullscreen #contentWrapper {
+                    max-width: none !important;
+                    width: 100% !important;
+                    margin: 0 !important;
+                    padding: 20px; /* optional spacing around edges */
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center; /* center smaller content */
+                }
+
+                /* mes container stretch full width */
+                body.is-fullscreen .mes-container {
+                    width: 100% !important;
+                    max-width: none !important;
+                    margin: 0 auto;
+                    padding: 60px 100px; /* adjust spacing as needed */
+                }
+
+                /* panels, cards stretch full width */
+                body.is-fullscreen .mes-panel,
+                body.is-fullscreen .mes-process-card,
+                body.is-fullscreen .mes-route-card {
+                    width: 100% !important;
+                    max-width: none !important;
+                    margin: 20px auto; /* maintain spacing between cards */
+                }
+
+                /* optional: center smaller content inside wrapper */
+                body.is-fullscreen #contentWrapper > * {
+                    text-align: center;
+                }
+
+                /* QR, tables, and route cards */
+                body.is-fullscreen .mes-table,
+                body.is-fullscreen .mes-route-table,
+                body.is-fullscreen .mes-route-qr {
+                    width: 100% !important;
+                    max-width: none !important;
+                }
+        </style>*@
 
     <script>
         let activeInput = null;

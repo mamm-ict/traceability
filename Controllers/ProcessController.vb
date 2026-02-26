@@ -262,7 +262,7 @@ Public Class ProcessController
         Dim data = Newtonsoft.Json.JsonConvert.DeserializeObject(Of Dictionary(Of String, String))(jsonString)
         Dim controlNo As String = data("controlNo")
 
-        Using conn As New SqlConnection(DbHelper.GetConnectionString("EmpDB"))
+        Using conn As New SqlConnection(DbHelper.GetConnectionString("BatchDB"))
             conn.Open()
             Dim cmd As New SqlCommand("
                 SELECT EMPLOYEE_NO

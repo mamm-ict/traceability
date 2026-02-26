@@ -117,6 +117,11 @@ Else
 
     @<p>No process logs yet.</p>
 End If
+
+<p style="text-align:center; margin-top:20px;">
+    <a class="mes-link" href="@Url.Action("Index", "History")">Back</a>
+</p>
+
 @*<style>
         .accordion {
             background-color: #f1f1f1;
@@ -163,9 +168,9 @@ End If
 </style>
 <script>
     // Auto redirect after 20 seconds
-    setTimeout(function () {
+    @*setTimeout(function () {
         window.location.href = '@Url.Action("Index", "History")';
-    }, 20000);
+    }, 20000);*@
 
     const activeRow = document.querySelector('.process-row.in-progress');
     if (activeRow) {

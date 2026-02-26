@@ -3,102 +3,165 @@
 End Code
 
 <style>
-    body {
-        font-family: 'Segoe UI', Arial, sans-serif;
-        background-color: #f2f4f7;
-    }
+ /* ===== Font Faces ===== */
+@@font-face {
+    font-family: 'Poppins';
+    src: url('/Content/Poppins-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+}
+@@font-face {
+    font-family: 'Poppins';
+    src: url('/Content/Poppins-Bold.ttf') format('truetype');
+    font-weight: 700;
+    font-style: normal;
+}
+@@font-face {
+    font-family: 'Poppins';
+    src: url('/Content/Poppins-ExtraBold.ttf') format('truetype');
+    font-weight: 800;
+    font-style: normal;
+}
 
-    .scan-container {
-        max-width: 500px;
-        margin: 50px auto;
-        background: #fff;
-        padding: 25px;
-        border-radius: 15px;
-        box-shadow: 0 8px 20px rgba(0,0,0,0.1);
-    }
+/* ===== Body & Container ===== */
+body {
+    font-family: 'Poppins', 'Segoe UI', Arial, sans-serif;
+    background-color: #f2f4f7;
+    margin: 0;
+}
 
-    h2 {
-        text-align: center;
-        margin-bottom: 15px;
-    }
+.mes-container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 50px 10px;
+}
 
-    .status-message {
-        text-align: center;
-        margin-bottom: 20px;
-        color: #007bff;
-        font-size: 16px;
-    }
+.scan-container {
+    background: #fff;
+    border-radius: 15px;
+    padding: 25px;
+    max-width: 500px;
+    width: 100%;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+}
 
-    label {
-        font-size: 18px;
-        font-weight: bold;
-        display: block;
-        margin-bottom: 8px;
-    }
+body.is-fullscreen .scan-container {
+    max-width: 800px;
+    width: 90%;
+    padding: 30px;
+}
 
-    input[type="text"] {
-        width: 100%;
-        padding: 16px;
-        font-size: 22px;
-        border-radius: 10px;
-        border: 2px solid #ccc;
-        outline: none;
-    }
+/* ===== Headings & Status ===== */
+h2 {
+    text-align: center;
+    margin-bottom: 15px;
+}
 
-        input[type="text"]:focus {
-            border-color: #007bff;
-        }
+.status-message {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #007bff;
+    font-size: 16px;
+}
 
-    input[type="submit"] {
-        width: 100%;
-        margin-top: 20px;
-        padding: 16px;
-        font-size: 20px;
-        border-radius: 12px;
-        border: none;
-        background-color: #007bff;
-        color: white;
-        cursor: pointer;
-    }
+/* ===== Labels ===== */
+label, .mes-label {
+    font-size: 18px;
+    font-weight: bold;
+    display: block;
+    margin-bottom: 8px;
+}
 
-        input[type="submit"]:active {
-            background-color: #0056b3;
-        }
-    input[type="text"],
-    input[type="submit"] {
-        width: 420px;
-        max-width: 100%;
-    }
+/* ===== Inputs ===== */
+input[type="text"],
+input[type="submit"] {
+    width: 100%;
+    max-width: 420px;
+    padding: 16px;
+    font-size: 22px;
+    border-radius: 10px;
+    border: 2px solid #ccc;
+    outline: none;
+    box-sizing: border-box;
+    margin-bottom: 16px;
+}
+
+input[type="text"]:focus {
+    border-color: #007bff;
+}
+
+input[type="submit"] {
+    background-color: #007bff;
+    color: white;
+    cursor: pointer;
+    border: none;
+    border-radius: 12px;
+    font-size: 20px;
+}
+
+input[type="submit"]:active {
+    background-color: #0056b3;
+}
+
+/* ===== Input With Icon ===== */
     .input-with-icon {
-        position: relative;
-        width: 420px;
-        max-width: 100%;
+        display: flex;
+        align-items: stretch; /* supaya children ikut height container */
+        width: 100%;
+        max-width: 420px;
+        margin-bottom: 16px;
     }
 
         .input-with-icon input {
-            width: 100%;
-            padding-right: 45px; /* ruang untuk button */
+            flex: 1;
+            font-size: 22px;
+            border-radius: 10px 0 0 10px;
+            border: 2px solid #ccc;
+            outline: none;
             box-sizing: border-box;
+            padding: 0 16px; /* vertical height akan ikut container height */
+            height: 56px; /* fix height */
         }
 
         .input-with-icon button {
-            position: absolute;
-            right: 0;
-            top: 0;
-            height: 100%;
-            width: 40px;
+            flex: 0 0 50px;
+            border-radius: 0 10px 10px 0;
             border: none;
             background-color: #007bff;
             color: white;
             cursor: pointer;
-            border-radius: 0 10px 10px 0;
+            height: 56px; /* sama dengan input */
         }
 
-            .input-with-icon button:disabled {
-                opacity: 0.5;
-                cursor: not-allowed;
-            }
+.input-with-icon button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
 
+/* ===== Fullscreen Overrides ===== */
+body.is-fullscreen input[type="text"],
+body.is-fullscreen input[type="submit"],
+body.is-fullscreen .input-with-icon {
+    width: 100%;
+    max-width: none;
+}
+
+body.is-fullscreen .input-with-icon input,
+body.is-fullscreen .input-with-icon button {
+    height: 56px;
+    font-size: 22px;
+}
+
+body.is-fullscreen .input-with-icon input {
+    flex: 1;
+    border-radius: 10px 0 0 10px;
+}
+
+body.is-fullscreen .input-with-icon button {
+    flex: 0 0 50px;
+    border-radius: 0 10px 10px 0;
+}
 </style>
 
 <div class="mes-container">
@@ -211,7 +274,7 @@ End Code
     input.addEventListener("keydown", function (e) {
         if (e.key === "Enter") {
             e.preventDefault();
-          
+
             let val = this.value.trim();
 
             // CASE 1: user type proc_code (OVN-04)
@@ -226,8 +289,8 @@ End Code
             //    this.focus();
             //    return;
             //}
-
-            fetch('/Process/GetProcessByControlNo', {
+            const url = '@Url.Action("GetProcessByControlNo", "Process")';
+            fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ controlNo: val })
@@ -259,8 +322,10 @@ End Code
         const traceId = traceInput.value.trim();
         if (!traceId) return;
 
-        window.location.href =
-            `/Process/ProcessBatch?traceId=${encodeURIComponent(traceId)}`;
+       window.location.href =
+    '@Url.Action("ProcessBatch", "Process")?traceId=' + encodeURIComponent(traceId);
+
     });
 
 </script>
+

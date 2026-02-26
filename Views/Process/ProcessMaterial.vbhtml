@@ -113,7 +113,7 @@ End Code
                     <input class="mes-input vk-input" id="mLowerMaterial" placeholder="Lower Material" />
                     <input class="mes-input vk-input" id="mBatchLot" placeholder="Batch Lot" />
 
-                    <div style="display:flex; gap:10px;">
+                    <div>
                         <input class="mes-input vk-input" id="mQty" placeholder="Qty" type="number" />
                         <input class="mes-input vk-input" id="mUom" placeholder="UOM" />
                     </div>
@@ -150,6 +150,7 @@ End Code
                                  data-procid="@m.ProcID"
                                  data-partcode="@m.PartCode"
                                  data-lowermaterial="@m.LowerMaterial"
+                                 data-lowerdesc="@m.LowerDesc"
                                  data-batchlot="@m.BatchLot"
                                  data-usageqty="@m.UsageQty"
                                  data-uom="@m.UOM"
@@ -157,7 +158,7 @@ End Code
                                  data-vendorlot="@m.VendorLot"
                                  data-isduplicate="@m.IsDuplicate">
 
-                                <td>@m.LowerMaterial</td>
+                                <td>@m.LowerDesc</td>
                                 <td>@m.BatchLot</td>
                                 <td>@m.UsageQty</td>
                                 <td>@m.UOM</td>
@@ -265,244 +266,367 @@ End Code
         font-weight: bold;
         color: #007bff;
     }
+
+    /* ===== Fullscreen Only ===== */
+    body.is-fullscreen {
+        /* Card */
+        .mes-process-card
+
+    {
+        max-width: 900px;
+        padding: 30px;
+        font-size: 1.05rem;
+    }
+
+    /* Inputs */
+    .mes-input {
+        font-size: 1.1rem;
+        padding: 16px 18px;
+    }
+
+    /* Qty + UOM row: center aligned */
+    /* ===== Fullscreen Only: Manual Qty + UOM Alignment ===== */
+    /* ===== Fullscreen Only: Qty + UOM Center Fix ===== */
+    body.is-fullscreen #manualMaterialForm > div {
+        display: flex !important;
+        gap: 12px !important;
+        align-items: center !important; /* center vertically */
+    }
+
+        body.is-fullscreen #manualMaterialForm > div input {
+            flex: 1;
+            height: 56px; /* match other manual inputs */
+            padding: 16px 18px;
+            font-size: 1.1rem;
+            box-sizing: border-box;
+            vertical-align: middle; /* extra safety */
+        }
+
+    /* Checkbox */
+    #enableManualMaterial {
+        transform: scale(1.6);
+        margin-right: 10px;
+    }
+
+    label[for="enableManualMaterial"], label strong {
+        font-size: 1.1rem;
+        line-height: 1.4;
+        vertical-align: middle;
+    }
+
+    /* Buttons */
+    .mes-btn-primary {
+        font-size: 1.1rem;
+        padding: 14px 18px;
+    }
+
+    .mes-btn-danger {
+        font-size: 1rem;
+        padding: 8px 14px;
+    }
+
+    /* Table fonts */
+    .mes-table th, .mes-table td {
+        font-size: 1rem;
+        padding: 12px;
+    }
+
+    .mes-card-subtitle {
+        font-size: 1.25rem;
+    }
+
+    #timer {
+        font-size: 1.1rem;
+    }
+
+    }
 </style>
 
 <script>
     const manualToggle = document.getElementById("enableManualMaterial");
     const manualForm = document.getElementById("manualMaterialForm");
     const scanInput = document.getElementById("materialQr");
+    const statusDiv = document.getElementById("materialStatus");
+    let permanentMessage = "";
+    let permanentType = "";
+
+    // Helper to show messages without Alert Box
+    function showStatus(msg, type = "info") {
+
+        statusDiv.textContent = msg;
+
+        switch (type) {
+
+            case "success-perm":
+                statusDiv.style.color = "green";
+                permanentMessage = msg;
+                permanentType = "green";
+                return;
+
+            case "error-perm":
+                statusDiv.style.color = "red";
+                permanentMessage = msg;
+                permanentType = "red";
+                return;
+
+            case "success":
+                statusDiv.style.color = "green";
+                break;
+
+            case "error":
+                statusDiv.style.color = "red";
+                break;
+
+            default:
+                statusDiv.style.color = "black";
+        }
+
+        // Auto clear temporary message
+        setTimeout(() => {
+            if (permanentMessage) {
+                statusDiv.textContent = permanentMessage;
+                statusDiv.style.color = permanentType;
+            } else {
+                statusDiv.textContent = "";
+            }
+        }, 5000);
+    }
 
     manualToggle.addEventListener("change", function () {
         if (this.checked) {
             manualForm.style.display = "block";
             scanInput.value = "";
-            scanInput.blur();              // ⬅️ PENTING
+            scanInput.blur();
+            document.getElementById("mLowerMaterial").focus();
             scanInput.disabled = true;
+            scanInput.style.display = "none";
         } else {
             manualForm.style.display = "none";
             scanInput.disabled = false;
-            scanInput.focus();             // scanner only when enabled
+            scanInput.style.display = "inline-block";
+            scanInput.focus();
+            
         }
     });
 </script>
+
 <script>
-let autoRedirectTimer;
-let countdown = 200; // 20 seconds
-const timerDisplay = document.getElementById("timer");
+    let autoRedirectTimer;
+    let countdown = 200; // 20 seconds
+    const timerDisplay = document.getElementById("timer");
 
-// Start or reset auto-redirect timer
-function startAutoRedirect() {
-    countdown = 200;
-    timerDisplay.textContent = countdown;
-
-    if (autoRedirectTimer) clearInterval(autoRedirectTimer);
-
-            // start new timer
-    autoRedirectTimer = setInterval(() => {
-        countdown--;
+    function startAutoRedirect() {
+        countdown = 200;
         timerDisplay.textContent = countdown;
+        if (autoRedirectTimer) clearInterval(autoRedirectTimer);
 
-        if (countdown <= 0) {
-            clearInterval(autoRedirectTimer);
-            window.location.href = '@Url.Action("ProcessBatch", "Process", New With {.TraceID = batch.TraceID})';
-        }
-    }, 1000);
-}
-
-// Start timer initially
-startAutoRedirect();
-
-// Submit button logic
-const submitBtn = document.getElementById("submitMaterial");
-
-if (submitBtn) {
-    submitBtn.addEventListener("click", function () {
-        const check = checkRequiredMaterials();
-
-        if (!check.ok) {
-            alert(
-                "❌ Required material not complete.\n\nMissing:\n- " +
-                check.missing.join("\n- ")
-            );
-            return;
-        }
-
-        const rows = document.querySelectorAll("#materialList tr");
-        if (rows.length === 0) {
-            alert("No material scanned.");
-            return;
-        }
-        else {
-            // STOP auto redirect timer
-            if (autoRedirectTimer) {
+        autoRedirectTimer = setInterval(() => {
+            countdown--;
+            timerDisplay.textContent = countdown;
+            if (countdown <= 0) {
                 clearInterval(autoRedirectTimer);
+                window.location.href = '@Url.Action("ProcessBatch", "Process", New With {.TraceID = batch.TraceID})';
+            }
+        }, 1000);
+    }
+
+    // Start timer initially
+    startAutoRedirect();
+
+    const submitBtn = document.getElementById("submitMaterial");
+    if (submitBtn) {
+        submitBtn.addEventListener("click", function () {
+            const check = checkRequiredMaterials();
+            if (!check.ok) {
+                // Using standard confirm instead of alert so user has choice,
+                // or just showStatus if strict no-popup needed.
+                // Here we use showStatus to respect "no message box"
+                //showStatus("❌ Missing: " + check.missing.join(", "), "true");
+                document.getElementById("materialQr").focus();
+                updateMaterialStatus();
+              
+                return;
             }
 
-        // Optional safety
-        this.disabled = true;
-
-        // DIRECT REDIRECT
-        window.location.href =
-            '@Url.Action("ProcessBatch","Process", New With {.TraceID = batch.TraceID})';
-        }
-
-    });
+            const rows = document.querySelectorAll("#materialList tr");
+            if (rows.length === 0) {
+                showStatus("No material scanned.", "true");
+                document.getElementById("materialQr").focus();
+                updateMaterialStatus();
+                return;
+            } else {
+                if (autoRedirectTimer) clearInterval(autoRedirectTimer);
+                this.disabled = true;
+                window.location.href = '@Url.Action("ProcessBatch", "Process", New With {.TraceID = batch.TraceID})';
+            }
+        });
     }
 
+    // ============================================================
+    // 🛑 KEYDOWN HANDLER (Blocks Tab & Enter)
+    // ============================================================
+    const qrInputEl = document.getElementById("materialQr");
 
-// QR scan handler
-    document.getElementById("materialQr")?.addEventListener("change", function () {
-        // ⛔ BLOCK SCANNER IF MANUAL MODE
+    if(qrInputEl) {
+        qrInputEl.addEventListener("keydown", function(e) {
+
+            // 1. BLOCK TAB (Key 9)
+            if (e.key === "Tab" || e.keyCode === 9) {
+                e.preventDefault(); // Stop focus movement
+
+                // Manually insert a tab character so delimiter logic works
+                const start = this.selectionStart;
+                const end = this.selectionEnd;
+                this.value = this.value.substring(0, start) + "\t" + this.value.substring(end);
+                this.selectionStart = this.selectionEnd = start + 1;
+            }
+
+            // 2. BLOCK ENTER (Key 13) -> TRIGGERS PROCESSING
+            else if (e.key === "Enter" || e.keyCode === 13) {
+                e.preventDefault(); // Stop form submit/page reload
+                processScannedData(this.value); // Trigger logic manually
+            }
+        });
+    }
+
+    // ============================================================
+    // ⚙️ LOGIC PROCESSOR (Moved out of 'change' event)
+    // ============================================================
+    function processScannedData(qrValue) {
+        // ⛔ BLOCK IF MANUAL MODE
         if (manualToggle.checked) {
-            this.value = "";
+            qrInputEl.value = "";
             return;
         }
 
-        const qr = this.value.trim();
+        const qr = qrValue.trim();
         if (!qr) return;
 
-    const parts = qr.split("\t");
-    if (parts.length !== 6) {
-        alert("Invalid Material QR");
-        this.value = "";
-        startAutoRedirect();
-        return;
-    }
+        // Intelligent Delimiter Detection
+        const allowedDelimiters = ["\t", "|", ";", ","];
+        let parts = [];
 
-    const rawQty = parts[2].replace(/,/g, "").trim();
-    const usageQty = parseInt(rawQty, 10);
+        for (const d of allowedDelimiters) {
+            const temp = qr.split(d);
+            if (temp.length === 6) {
+                parts = temp;
+                break;
+            }
+        }
 
-    if (isNaN(usageQty)) {
-        alert("Invalid quantity in QR");
-        this.value = "";
-        return;
-    }
+        if (parts.length !== 6) {
+            console.log("Invalid format: " + qr);
+            showStatus("❌ Invalid QR Format. Need 6 columns.", "error");
+            qrInputEl.value = "";
+            qrInputEl.focus();
+            startAutoRedirect();
+            return;
+        }
 
-    const payload = {
-        TraceID: document.getElementById("traceId").value,
-        ProcID: parseInt(document.getElementById("procId").value, 10),
-        PartCode: document.getElementById("partCode").value,
-        LowerMaterial: parts[0],
-        BatchLot: parts[1],
-        UsageQty: usageQty,
-        UOM: parts[3].toUpperCase(),
-        VendorCode: parts[4],
-        VendorLot: parts[5]
-    };
+        const rawQty = parts[2].replace(/,/g, "").trim();
+        const usageQty = parseInt(rawQty, 10);
 
-    fetch('@Url.Action("ScanMaterial")', {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-    })
-    .then(r => r.text())
-    .then(res => {
-        if (res === "DUPLICATE") {
-            alert("⚠ Material already scanned before!");
-        } else if (res !== "OK") {
-            alert(res);
-            this.value = "";
-            this.focus();
-            // Optional: reload page if you want duplicate prevention
+        if (isNaN(usageQty)) {
+            showStatus("❌ Invalid quantity", true);
+            qrInputEl.value = "";
+            return;
+        }
+
+        const payload = {
+            TraceID: document.getElementById("traceId").value,
+            ProcID: parseInt(document.getElementById("procId").value, 10),
+            PartCode: document.getElementById("partCode").value,
+            LowerMaterial: parts[0].trim(),
+            BatchLot: parts[1].trim(),
+            UsageQty: usageQty,
+            UOM: parts[3].trim().toUpperCase(),
+            VendorCode: parts[4].trim(),
+            VendorLot: parts[5].trim()
+        };
+
+        // UI Feedback
+        showStatus("⏳ Saving...", "info");
+
+        fetch('@Url.Action("ScanMaterial")', {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        })
+        .then(r => r.text())
+        .then(res => {
+            if (res === "DUPLICATE") {
+                showStatus("⚠ Material already scanned!", "error");
+            } else if (res !== "OK") {
+                showStatus("❌ " + res, "error");
+                qrInputEl.value = "";
+                qrInputEl.focus();
+                // window.location.href = window.location.href; // Optional reload
+                return;
+            }
+
+            // Success
+            showStatus("✅ Material Added", "success");
+            qrInputEl.value = "";
+            qrInputEl.focus();
+
+            // Reload to update table
             window.location.href = window.location.href;
-            return;
-        }
-
-        // Clear input and focus
-        this.value = "";
-        this.focus();
-        window.location.href = window.location.href;
-
-        // Reset auto-redirect timer
-        startAutoRedirect();
-    })
-    .catch(err => {
-        alert("Scan error: " + err);
-        this.value = "";
-        this.focus();
-        startAutoRedirect();
-    });
-});
-
-document.getElementById("addManualMaterial")
-?.addEventListener("click", function () {
-
-    const lower = mLowerMaterial.value.trim();
-    const lot   = mBatchLot.value.trim();
-    const qty   = parseInt(mQty.value, 10);
-    const uom   = mUom.value.trim().toUpperCase();
-    const v     = mVendor.value.trim();
-    const vlot  = mVendorLot.value.trim();
-
-    if (!lower || !lot || isNaN(qty)) {
-        alert("Incomplete manual material");
-        return;
+            startAutoRedirect();
+        })
+        .catch(err => {
+            showStatus("❌ Scan error: " + err, "error");
+            qrInputEl.value = "";
+            qrInputEl.focus();
+            startAutoRedirect();
+        });
     }
 
-    const payload = {
-        TraceID: traceId.value,
-        ProcID: parseInt(procId.value),
-        PartCode: partCode.value,
-        LowerMaterial: lower,
-        BatchLot: lot,
-        UsageQty: qty,
-        UOM: uom,
-        VendorCode: v,
-        VendorLot: vlot,
-        IsManual: true
-    };
+    // Manual Entry Logic
+    document.getElementById("addManualMaterial")?.addEventListener("click", function () {
+        const lower = mLowerMaterial.value.trim();
+        const lot   = mBatchLot.value.trim();
+        const qty   = parseInt(mQty.value, 10);
+        const uom   = mUom.value.trim().toUpperCase();
+        const v     = mVendor.value.trim();
+        const vlot  = mVendorLot.value.trim();
 
-    fetch('@Url.Action("ScanMaterial","Process")', {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-    })
-    .then(r => r.text())
-    .then(res => {
-        if (res !== "OK") {
-            alert(res);
+        if (!lower || !lot || isNaN(qty)) {
+            showStatus("❌ Incomplete manual material", "error");
             return;
         }
-        alert("Succefully added material");
-        this.value = "";
-        this.focus();
-        // Optional: reload page if you want duplicate prevention
-        window.location.href = window.location.href;
+        
+        const payload = {
+            TraceID: traceId.value,
+            ProcID: parseInt(procId.value),
+            PartCode: partCode.value,
+            LowerMaterial: lower,
+            BatchLot: lot,
+            UsageQty: qty,
+            UOM: uom,
+            VendorCode: v,
+            VendorLot: vlot,
+            IsManual: true
+        };
 
-        // UI only AFTER DB success
-        const tr = document.createElement("tr");
-        tr.dataset.manual = "1";
-        tr.innerHTML = `
-            <td>${lower}</td>
-            <td>${lot}</td>
-            <td>${qty}</td>
-            <td>${uom}</td>
-            <td>${v}</td>
-            <td>${vlot}</td>
-            <td><button class="mes-btn-danger">✖</button></td>
-        `;
-        tr.querySelector("button").onclick = () => tr.remove();
-        materialList.appendChild(tr);
-
-        // clear form
-        ["mLowerMaterial","mBatchLot","mQty","mUom","mVendor","mVendorLot"]
-            .forEach(id => document.getElementById(id).value = "");
-
-        startAutoRedirect();
+        fetch('@Url.Action("ScanMaterial", "Process")', {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        })
+        .then(r => r.text())
+        .then(res => {
+            if (res !== "OK") {
+                showStatus("❌ " + res, "error");
+                return;
+            }
+            showStatus("✅ Manual Add Success", "success");
+            window.location.href = window.location.href;
+            startAutoRedirect();
+        });
     });
-});
 
-
-
-</script>
-<script>
-   function removeMaterial(id, isDuplicate) {
-        //if (!isDuplicate) {
-        //    alert("Cannot delete original material!");
-        //    return;
-        //}
-
-        if (!confirm("Remove this duplicate material?")) return;
+    function removeMaterial(id, isDuplicate) {
+        if (!confirm("Remove this material?")) return;
 
         fetch("@Url.Action("DeleteTraceMaterial")", {
             method: "POST",
@@ -514,54 +638,36 @@ document.getElementById("addManualMaterial")
             if (res === "OK") {
                 location.reload();
             } else {
-                alert(res);
+                showStatus("❌ " + res, "error");
             }
         });
     }
-</script>
-<script>
-   const REQUIRED_MATERIALS =
-    @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewData("RequiredMaterials")));
 
-function getScannedMaterials() {
-    return Array.from(document.querySelectorAll("#materialList tr"))
-        .map(r => r.dataset.lowermaterial);
-}
+    const REQUIRED_MATERIALS = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewData("RequiredMaterials")));
+
+    function getScannedMaterials() {
+        return Array.from(document.querySelectorAll("#materialList tr"))
+            .map(r => r.dataset.lowermaterial);
+    }
 
     function checkRequiredMaterials() {
         const scanned = getScannedMaterials();
-
-        const missing = REQUIRED_MATERIALS.filter(rm =>
-            !scanned.includes(rm.lowerItem)
-        );
-
+        const missing = REQUIRED_MATERIALS.filter(rm => !scanned.includes(rm.lowerItem));
         return {
             ok: missing.length === 0,
             missing: missing.map(m => `${m.lowerDesc} (${m.lowerItem})`)
         };
     }
 
-
-
-// Update status on screen
     function updateMaterialStatus() {
-        const status = document.getElementById("materialStatus");
-        console.log("status div:", status);
         const check = checkRequiredMaterials();
-        console.log("check result:", check);
-
-        if (!status) return;
 
         if (check.ok) {
-            status.style.color = "green";
-            status.textContent = "✅ All required materials present";
+            showStatus("✅ All required materials present", "success-perm");
         } else {
-            status.style.color = "red";
-            status.textContent = "⚠ Missing: " + check.missing.join(", ");
+            showStatus("⚠ Missing: " + check.missing.join(", "), "error-perm");
         }
     }
 
-// Call after scan or manual add
-updateMaterialStatus();
-
+    updateMaterialStatus();
 </script>

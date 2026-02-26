@@ -8,7 +8,7 @@ End Code
 <script src="~/Scripts/jquery-3.7.0.min.js"></script>
 
 <div class="mes-container">
-    <form method="post" action="/Batch/Create" class="mes-panel">
+    <form method="post" class="mes-panel">
         <div class="mes-title">Create Route Card</div>
 
         <div class="mes-grid">
@@ -278,7 +278,8 @@ End Code
 </script>
 <script>
     function submitControlNo(traceID, controlNo) {
-        fetch('/Batch/AddControlNo', {
+        const url = '@Url.Action("AddControlNo", "Batch")';
+        fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

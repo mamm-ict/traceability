@@ -413,16 +413,18 @@ End Code
         const traceId = btn.dataset.traceid;
         currentTraceId = traceId;
 
-        fetch(`/Process/CheckPdfStatus?traceId=${traceId}`)
+        const checkPdfUrl = '@Url.Action("CheckPdfStatus", "Process")';
+        fetch(`${checkPdfUrl}?traceId=${traceId}`)
             .then(r => r.json())
             .then(data => {
                 if (data.alreadyPrinted) {
                     modalMessage.textContent = `PDF for Trace ID ${traceId} already exists.`;
-                    modalLink.href = `/Process/OpenExistingPdf?traceId=${traceId}`;
+                    modalLink.href = '@Url.Action("OpenExistingPdf", "Process")' + '?traceId=' + traceId;
                     modalLink.textContent = "Open existing PDF";
                     pdfModal.style.display = "flex";
                 } else {
-                    const newWin = window.open(`/Process/DownloadTracePdf?traceId=${traceId}`, "_blank");
+                    const downloadUrl = '@Url.Action("DownloadTracePdf", "Process")';
+                    const newWin = window.open(`${downloadUrl}?traceId=${traceId}`, "_blank");
 
                     // listen tab close, baru reload page
                     const interval = setInterval(() => {
@@ -438,7 +440,8 @@ End Code
     // Download again generates new PDF
     btnDownloadAgain.onclick = () => {
         if (!currentTraceId) return;
-        const newWin = window.open(`/Process/DownloadTracePdf?traceId=${currentTraceId}&forceNew=true`, "_blank");
+        const downloadUrl = '@Url.Action("DownloadTracePdf", "Process")';
+        const newWin = window.open(`${downloadUrl}?traceId=${currentTraceId}`, "_blank");
         pdfModal.style.display = "none";
 
         // listen tab close, baru reload page
