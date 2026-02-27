@@ -183,7 +183,7 @@ body.is-fullscreen .input-with-icon button {
 
             <label class="mes-label">Operator No</label>
             <input type="text" name="operatorId" id="operatorID" required autocomplete="off" />
-            <label class="mes-label">Scan Process QR</label>
+            <label class="mes-label">Scan Process Card</label>
             <input type="text" name="processQr" id="processQr" required autocomplete="off" />
             <input type="submit" value="Submit" />
         </form>
