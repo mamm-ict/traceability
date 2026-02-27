@@ -899,10 +899,26 @@ body.is-fullscreen .mes-container { padding: 60px 80px; }
         function updateClock() {
             const now = new Date();
 
-            const day = String(now.getDate()).padStart(2, "0");
-            const month = String(now.getMonth() + 1).padStart(2, "0");
-            const year = now.getFullYear();
+            // ===== SHIFT A START TIME (dari schedule.txt) =====
+            const shiftAStartHour = 7;
+            const shiftAStartMinute = 45;
 
+            // ===== PRODUCTION DATE LOGIC =====
+            const productionDate = new Date(now);
+
+            if (
+                now.getHours() < shiftAStartHour ||
+                (now.getHours() === shiftAStartHour && now.getMinutes() < shiftAStartMinute)
+            ) {
+                productionDate.setDate(productionDate.getDate() - 1);
+            }
+
+            // ===== FORMAT DATE =====
+            const day = String(productionDate.getDate()).padStart(2, "0");
+            const month = String(productionDate.getMonth() + 1).padStart(2, "0");
+            const year = productionDate.getFullYear();
+
+            // ===== FORMAT TIME (REAL TIME) =====
             const h = String(now.getHours()).padStart(2, "0");
             const m = String(now.getMinutes()).padStart(2, "0");
             const s = String(now.getSeconds()).padStart(2, "0");
